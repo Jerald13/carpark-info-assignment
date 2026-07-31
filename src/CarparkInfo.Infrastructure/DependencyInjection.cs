@@ -1,3 +1,6 @@
+using CarparkInfo.Application.Abstractions;
+using CarparkInfo.Application.Ingestion;
+using CarparkInfo.Infrastructure.Ingestion;
 using CarparkInfo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -36,6 +39,46 @@ public static class DependencyInjection
 
         services.AddDbContext<CarparkDbContext>(options => options.UseSqlite(connectionString));
 
+        // A factory as well as the scoped context: failure auditing needs an INDEPENDENT
+        // connection so the record survives the rollback that discards the data.
+        services.AddDbContextFactory<CarparkDbContext>(
+            options => options.UseSqlite(connectionString),
+            lifetime: ServiceLifetime.Scoped);
+
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IIngestionContext, IngestionContext>();
+
+        // Record sources. Registering IRecordSource as a collection is what makes the format seam
+        // real: adding a format is one more line here and nothing else in the solution changes.
+        services.AddScoped<IRecordSource, CsvCarparkRecordSource>();
+        services.AddScoped<IRecordSource, JsonCarparkRecordSource>();
+        services.AddScoped<IRecordSourceFactory, RecordSourceFactory>();
+
+        services.AddScoped<RecordValidator>();
+        services.AddScoped<AtomicMergeService>();
+        services.AddScoped<IJobRunStore, JobRunStore>();
+        services.AddScoped<ICarparkStagingStore, CarparkStagingStore>();
+        services.AddScoped<ILookupResolver, LookupResolver>();
+        services.AddScoped<CarparkIngestionService>();
+
+        services.AddOptions<IngestionOptions>()
+            .Bind(configuration.GetSection(IngestionOptions.SectionName))
+            .ValidateOnStart();
+
         return services;
+    }
+
+    /// <summary>Applies any pending migrations. Used at startup in Development.</summary>
+    /// <param name="services">The application's service provider.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    public static async Task MigrateDatabaseAsync(
+        IServiceProvider services, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        await using var scope = services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<CarparkDbContext>();
+
+        await db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
     }
 }

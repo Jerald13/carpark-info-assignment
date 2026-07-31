@@ -34,12 +34,14 @@ internal sealed class JobRunConfiguration : IEntityTypeConfiguration<JobRun>
         builder.Property(r => r.AttemptNumber).HasColumnName("attempt_number");
         builder.Property(r => r.ErrorSummary).HasColumnName("error_summary").HasMaxLength(2000);
 
-        // Idempotency: at most ONE successful run may exist per file hash. A filtered unique index
-        // enforces it in the database, so a race between two hosts cannot produce two successes.
-        builder.HasIndex(r => r.FileHash)
-            .IsUnique()
-            .HasFilter("status = 'Succeeded'")
-            .HasDatabaseName("ux_job_run_file_hash");
+        // Idempotency lookup: "has this exact file already succeeded?" runs once per ingestion.
+        //
+        // Deliberately NOT unique. A unique filtered index would also block --force, which is an
+        // explicit operator override for reprocessing a file on purpose. The database refusing a
+        // decision the operator has consciously made is the wrong trade: idempotency is enforced
+        // by the HasSucceededAsync check, and concurrent processing by the run lease.
+        builder.HasIndex(r => new { r.FileHash, r.Status })
+            .HasDatabaseName("ix_job_run_file_hash");
 
         // Startup reclaim scans for Running rows whose lease has lapsed.
         builder.HasIndex(r => new { r.Status, r.LeaseExpiresAt })
