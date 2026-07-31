@@ -61,6 +61,8 @@ public static class DependencyInjection
         services.AddScoped<ILookupResolver, LookupResolver>();
         services.AddScoped<CarparkIngestionService>();
 
+        services.AddScoped<ICarparkRepository, Persistence.CarparkRepository>();
+
         services.AddOptions<IngestionOptions>()
             .Bind(configuration.GetSection(IngestionOptions.SectionName))
             .ValidateOnStart();

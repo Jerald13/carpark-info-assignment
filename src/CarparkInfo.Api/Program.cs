@@ -1,3 +1,5 @@
+using CarparkInfo.Infrastructure;
+
 // Composition root for the Carpark Information API.
 //
 // Middleware ORDER is load-bearing - see ARCHITECTURE.md section 9. In particular the exception
@@ -10,6 +12,8 @@
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddProblemDetails();
 
 // OpenAPI 3.1 document generation via the FIRST-PARTY package, not Swashbuckle's generator
 // (ADR-012). ASP.NET Core dropped Swashbuckle from its templates in .NET 9; the built-in
@@ -18,6 +22,9 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Migrations run at startup so a reviewer can clone and run with no database setup step.
+await InfrastructureSetup.MigrateAsync(app.Services).ConfigureAwait(false);
 
 if (app.Environment.IsDevelopment())
 {

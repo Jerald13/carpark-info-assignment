@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CarparkInfo.Api\CarparkInfo.Api.csproj" />
+    <ProjectReference Include="..\..\src\CarparkInfo.Application\CarparkInfo.Application.csproj" />
+    <ProjectReference Include="..\..\src\CarparkInfo.Infrastructure\CarparkInfo.Infrastructure.csproj" />
   </ItemGroup>
 
   
