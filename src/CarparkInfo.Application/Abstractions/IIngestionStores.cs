@@ -33,11 +33,17 @@ public interface IJobRunStore
     /// <param name="cancellationToken">Cancels the operation.</param>
     Task HeartbeatAsync(int jobRunId, CancellationToken cancellationToken);
 
-    /// <summary>Marks a run successful and records its counts.</summary>
+    /// <summary>Marks a run successful, records its counts, and persists any warnings.</summary>
     /// <param name="jobRunId">The run.</param>
     /// <param name="counts">What the run did.</param>
+    /// <param name="defects">
+    /// Warnings raised during a successful run. These are persisted too: a run that succeeded but
+    /// flagged three inconsistent rows is exactly what an operator needs to see, and a report that
+    /// only exists on failure hides it.
+    /// </param>
     /// <param name="cancellationToken">Cancels the operation.</param>
-    Task CompleteAsync(int jobRunId, IngestionCounts counts, CancellationToken cancellationToken);
+    Task CompleteAsync(int jobRunId, IngestionCounts counts,
+        IReadOnlyList<RecordDefect> defects, CancellationToken cancellationToken);
 
     /// <summary>
     /// Records a failure and its defect report <b>on a connection independent of the data

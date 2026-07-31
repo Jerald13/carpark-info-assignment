@@ -116,3 +116,7 @@ desktop.ini
 # A blanket `*.md` rule is deliberately NOT used here: it would also ignore
 # README.md, which is the first and often only file a reviewer opens.
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Batch job local database
+src/CarparkInfo.BatchJob/carpark.db*
+src/CarparkInfo.Api/carpark.db*

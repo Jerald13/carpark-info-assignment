@@ -74,14 +74,26 @@ public sealed class JobRunStore : IJobRunStore
 
     /// <inheritdoc />
     public async Task CompleteAsync(int jobRunId, IngestionCounts counts,
-        CancellationToken cancellationToken)
+        IReadOnlyList<RecordDefect> defects, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(defects);
+
         var run = await _db.JobRuns.FindAsync([jobRunId], cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Job run {jobRunId} not found.");
 
         run.RecordCounts(counts.Read, counts.Inserted, counts.Updated, counts.Unchanged,
             counts.Deactivated, counts.Rejected);
         run.MarkSucceeded(_context.UtcNow);
+
+        // Warnings are persisted on the SUCCESS path as well. A run that ingested 2,181 rows and
+        // flagged three inconsistent ones has something an operator should see; a defect report
+        // that only exists when the run fails hides exactly that case.
+        foreach (var defect in defects)
+        {
+            run.AddError(new JobRunError(
+                defect.LineNumber, defect.CarParkNo, defect.FieldName, defect.ErrorCode,
+                defect.Severity, defect.Message, Truncate(defect.RawLine, 2000)));
+        }
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -141,10 +153,16 @@ public sealed class JobRunStore : IJobRunStore
     {
         var now = _context.UtcNow;
 
-        var abandoned = await _db.JobRuns
-            .Where(r => r.Status == JobRunStatus.Running && r.LeaseExpiresAt <= now)
+        // The status filter translates (it is stored as text); the lease comparison is applied in
+        // memory because SQLite stores DateTimeOffset as TEXT and EF cannot translate the
+        // comparison reliably. That is fine here rather than a compromise: the lease guarantees at
+        // most one Running row per host, so this materialises a handful of rows at most.
+        var running = await _db.JobRuns
+            .Where(r => r.Status == JobRunStatus.Running)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        var abandoned = running.Where(r => r.HasExpiredLease(now)).ToList();
 
         if (abandoned.Count == 0)
         {

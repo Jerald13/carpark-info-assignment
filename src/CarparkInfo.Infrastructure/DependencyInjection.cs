@@ -67,18 +67,4 @@ public static class DependencyInjection
 
         return services;
     }
-
-    /// <summary>Applies any pending migrations. Used at startup in Development.</summary>
-    /// <param name="services">The application's service provider.</param>
-    /// <param name="cancellationToken">Cancels the operation.</param>
-    public static async Task MigrateDatabaseAsync(
-        IServiceProvider services, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-
-        await using var scope = services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<CarparkDbContext>();
-
-        await db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
-    }
 }

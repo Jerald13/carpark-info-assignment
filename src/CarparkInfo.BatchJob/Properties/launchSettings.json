@@ -1,9 +1,10 @@
-﻿{
+{
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
     "CarparkInfo.BatchJob": {
       "commandName": "Project",
-      "dotnetRunMessages": true,
+      "workingDirectory": "$(SolutionDir)",
+      "commandLineArgs": "--file hdb-carpark-information-20220824010400.csv",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"
       }

@@ -214,7 +214,8 @@ public sealed class CarparkIngestionService
             };
 
             await _staging.TruncateAsync(jobRunId, cancellationToken).ConfigureAwait(false);
-            await _jobRuns.CompleteAsync(jobRunId, counts, cancellationToken).ConfigureAwait(false);
+            await _jobRuns.CompleteAsync(jobRunId, counts, defects, cancellationToken)
+                .ConfigureAwait(false);
 
             IngestionLog.RunSucceeded(_logger, jobRunId, counts.Read, counts.Inserted,
                 counts.Updated, counts.Unchanged, counts.Deactivated, defects.Count);
