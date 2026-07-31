@@ -41,8 +41,13 @@ internal sealed class BearerSecuritySchemeTransformer : IOpenApiDocumentTransfor
             BearerFormat = "JWT",
             In = ParameterLocation.Header,
             Description =
-                "Paste the accessToken returned by POST /api/v1/auth/login. "
-                + "Swagger adds the 'Bearer ' prefix for you.",
+                "Paste the accessToken value returned by POST /api/v1/auth/login — the long "
+                + "string beginning 'eyJ'.\n\n"
+                + "Do NOT type 'Bearer ' in front; Swagger adds it.\n"
+                + "Use accessToken, not refreshToken — the refresh token is for renewal and will "
+                + "not authenticate a request.\n\n"
+                + "No account yet? Call POST /api/v1/auth/register first. The password must be at "
+                + "least 12 characters.",
         };
 
         document.Info.Title = "Carpark Information API";

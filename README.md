@@ -46,9 +46,63 @@ curl "http://localhost:5106/api/v1/carparks?vehicleHeight=2.0&includeTotal=true"
 curl "http://localhost:5106/api/v1/carparks?freeParking=true&nightParking=true&vehicleHeight=2.0&lat=1.3009&lon=103.8546&radiusKm=1&sort=distance"
 ```
 
-Favourites need a token: register → login → paste it into Swagger's **Authorize** button, or:
+### Favourites — getting a token
+
+Favourites need a bearer token. Three steps, all doable in Swagger without any client tooling.
+
+**1. Register** — `POST /api/v1/auth/register` → **Try it out** → **Execute**
+
+```json
+{
+  "email": "reviewer@example.com",
+  "password": "correct-horse-battery-staple",
+  "displayName": "Reviewer"
+}
+```
+
+> The password must be **at least 12 characters**, or you get a `400` listing the rule.
+> Registering an address twice returns the same message as registering a new one — that is
+> deliberate, so the endpoint cannot be used to discover which addresses have accounts.
+
+**2. Log in** — `POST /api/v1/auth/login` with the same email and password:
+
+```json
+{
+  "accessToken":  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwi…",
+  "refreshToken": "8Kx2vQ…",
+  "expiresInSeconds": 900,
+  "tokenType": "Bearer"
+}
+```
+
+**3. Authorize** — click the **Authorize** button, paste the **`accessToken`** value, click Authorize.
+
+- Paste the token **only**. Do not type `Bearer ` in front — Swagger adds it.
+- Use `accessToken`, not `refreshToken`. The refresh token is a short random string for renewal
+  and will not authenticate a request.
+- It expires after **15 minutes**. A bearer token cannot be revoked once issued, so a short life
+  bounds the damage if one leaks; `POST /api/v1/auth/refresh` gets a fresh pair without
+  re-entering the password.
+- **Tokens do not survive an API restart.** When no signing key is configured the app generates a
+  random one at startup — deliberately, because a hard-coded fallback that silently works in
+  production is how signing keys end up committed.
+
+Then try `PUT /api/v1/favourites/ACB`. It returns **`201`** the first time and **`200`** if you
+repeat it — never `409`, because favouriting twice is favouriting once.
+
+Or from a terminal:
 
 ```bash
+EMAIL="reviewer@example.com"; PASS="correct-horse-battery-staple"
+
+curl -s -X POST http://localhost:5106/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\",\"displayName\":\"Reviewer\"}"
+
+TOKEN=$(curl -s -X POST http://localhost:5106/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" | jq -r .accessToken)
+
 curl -X PUT -H "Authorization: Bearer $TOKEN" \
     "http://localhost:5106/api/v1/favourites/ACB"
 ```
