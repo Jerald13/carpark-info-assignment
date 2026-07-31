@@ -67,6 +67,10 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, Auth.Pbkdf2PasswordHasher>();
         services.AddScoped<ITokenService, Auth.JwtTokenService>();
         services.AddScoped<CarparkInfo.Application.Auth.AuthenticationService>();
+        services.AddScoped<IJobRunQueries, Persistence.JobRunQueries>();
+        services.AddSingleton<IFileIntake, Ingestion.FileIntake>();
+        services.AddScoped<IngestionRunner>();
+        services.AddSingleton(new RetryOptions());
 
         services.AddOptions<IngestionOptions>()
             .Bind(configuration.GetSection(IngestionOptions.SectionName))
