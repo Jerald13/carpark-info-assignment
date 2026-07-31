@@ -45,6 +45,7 @@ public readonly record struct HeightRestriction
     {
         MaximumVehicleHeightMetres = maximumVehicleHeightMetres;
         RawSourceValue = rawSourceValue;
+        IsRestricted = maximumVehicleHeightMetres.HasValue;
     }
 
     /// <summary>
@@ -60,8 +61,16 @@ public readonly record struct HeightRestriction
     /// <summary>The unmodified <c>gantry_height</c> value from the source file, kept for audit.</summary>
     public decimal RawSourceValue { get; }
 
-    /// <summary>Whether a height limit applies at all.</summary>
-    public bool IsRestricted => MaximumVehicleHeightMetres.HasValue;
+    /// <summary>
+    /// Whether a height limit applies at all.
+    /// </summary>
+    /// <remarks>
+    /// Stored rather than computed from <see cref="MaximumVehicleHeightMetres"/>. It is derivable,
+    /// so this is a deliberate denormalisation: it lets the covering index carry the flag as a
+    /// leading equality column, and it makes the rule explicit in the schema instead of implied by
+    /// a nullable. Self-documenting beats clever. See DATA-ARCHITECTURE.md section 3.3.
+    /// </remarks>
+    public bool IsRestricted { get; }
 
     /// <summary>An unrestricted carpark, as if read from a source row with no gantry.</summary>
     public static HeightRestriction Unrestricted { get; } = new(null, NoGantrySentinel);
