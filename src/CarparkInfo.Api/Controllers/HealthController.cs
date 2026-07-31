@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CarparkInfo.Api.Controllers;
@@ -13,6 +14,7 @@ namespace CarparkInfo.Api.Controllers;
 /// </remarks>
 [ApiController]
 [Route("api/v1/[controller]")]
+[AllowAnonymous]
 [Produces("application/json")]
 public sealed class HealthController : ControllerBase
 {
