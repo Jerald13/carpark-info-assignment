@@ -1,6 +1,7 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using CarparkInfo.Application.Auth;
+using CarparkInfo.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
@@ -49,6 +50,9 @@ public static class ApiSecurity
         }
 
         services.AddSingleton(options);
+
+        // AuthOptions must be registered before the services that consume it.
+        services.AddAuthInfrastructure();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(jwt =>

@@ -63,10 +63,6 @@ public static class DependencyInjection
 
         services.AddScoped<ICarparkRepository, Persistence.CarparkRepository>();
         services.AddScoped<IFavouriteRepository, Persistence.FavouriteRepository>();
-        services.AddScoped<IUserRepository, Auth.UserRepository>();
-        services.AddSingleton<IPasswordHasher, Auth.Pbkdf2PasswordHasher>();
-        services.AddScoped<ITokenService, Auth.JwtTokenService>();
-        services.AddScoped<CarparkInfo.Application.Auth.AuthenticationService>();
         services.AddScoped<IJobRunQueries, Persistence.JobRunQueries>();
         services.AddSingleton<IFileIntake, Ingestion.FileIntake>();
         services.AddScoped<IngestionRunner>();
@@ -75,6 +71,32 @@ public static class DependencyInjection
         services.AddOptions<IngestionOptions>()
             .Bind(configuration.GetSection(IngestionOptions.SectionName))
             .ValidateOnStart();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers authentication services.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The service collection, for chaining.</returns>
+    /// <remarks>
+    /// Separate from <see cref="AddInfrastructure"/> because <b>the batch job has no business
+    /// knowing about JWT</b>. These services depend on <c>AuthOptions</c>, which only an HTTP host
+    /// configures; registering them unconditionally made the batch job fail at startup under DI
+    /// validation, since it registered a dependency nothing could satisfy.
+    ///
+    /// Found by cloning the repository fresh and following the README, which is the only way that
+    /// class of defect surfaces - every test either hosts the full API or bypasses the container.
+    /// </remarks>
+    public static IServiceCollection AddAuthInfrastructure(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddScoped<IUserRepository, Auth.UserRepository>();
+        services.AddSingleton<IPasswordHasher, Auth.Pbkdf2PasswordHasher>();
+        services.AddScoped<ITokenService, Auth.JwtTokenService>();
+        services.AddScoped<CarparkInfo.Application.Auth.AuthenticationService>();
 
         return services;
     }
