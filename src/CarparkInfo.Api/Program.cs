@@ -17,6 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApiSecurity(builder.Configuration);
+builder.AddApiObservability();
 
 // RFC 7807 for every error shape, including ones the framework raises.
 builder.Services.AddProblemDetails(options =>
