@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  CI: true
+
+jobs:
+  build:
+    name: Build, test and audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore
+
+      # Formatting is a build gate, not a review comment. Cheap to enforce, tedious to argue about.
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes --no-restore
+
+      # TreatWarningsAsErrors is set in Directory.Build.props; -warnaserror covers restore too.
+      - name: Build
+        run: dotnet build --no-restore --configuration Release -warnaserror
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release
+
+      # A known-vulnerable package must fail the build, not appear in a report nobody reads.
+      # This is what caught Microsoft.OpenApi 2.0.0 (GHSA-v5pm-xwqc-g5wc) on day one.
+      - name: Audit dependencies for known vulnerabilities
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee audit.log
+          if grep -q "has the following vulnerable packages" audit.log; then
+            echo "::error::Vulnerable packages detected - see the log above."
+            exit 1
+          fi
+          echo "No vulnerable packages."
+
+      # Informational only: outdated packages are a prompt to review, not a reason to fail.
+      - name: Report outdated packages
+        continue-on-error: true
+        run: dotnet list package --outdated
