@@ -117,6 +117,11 @@ desktop.ini
 # README.md, which is the first and often only file a reviewer opens.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Batch job local database
+# Batch job local database and runtime intake directories.
+# These are runtime artefacts wherever the job happens to be launched from.
 src/CarparkInfo.BatchJob/carpark.db*
 src/CarparkInfo.Api/carpark.db*
+**/intake/inbox/*
+**/intake/processed/*
+**/intake/quarantine/*
+!**/intake/**/.gitkeep
