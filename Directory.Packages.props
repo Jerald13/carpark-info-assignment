@@ -51,12 +51,29 @@
       version itself - this pin can then be deleted.
     -->
     <PackageVersion Include="Microsoft.OpenApi" Version="2.11.0" />
+
+    <!--
+      SECURITY PIN. Microsoft.EntityFrameworkCore.Sqlite 10.0.10 resolves
+      SQLitePCLRaw.lib.e_sqlite3 2.1.11 transitively, which bundles a SQLite build carrying a
+      HIGH severity advisory:
+
+        GHSA-2m69-gcr7-jv3q - "SQLitePCLRaw.lib.e_sqlite3 has a vulnerable dependency on SQLite"
+        vulnerable: <= 2.1.11
+
+      2.1.12 is the first release outside that range and stays on the same line as the
+      SQLitePCLRaw.bundle_e_sqlite3 that EF Core resolves, so the native assets remain compatible.
+      Jumping to 3.x would cross a major boundary EF Core 10 was not built against.
+
+      REVIEW when EF Core ships a build that resolves a patched version itself.
+    -->
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
   </ItemGroup>
 
   <ItemGroup Label="Cross-cutting">
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.10" />
   </ItemGroup>
 
