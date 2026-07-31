@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using CarparkInfo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CarparkInfo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CarparkDbContext))]
-    partial class CarparkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731102603_AddCarparkStaging")]
+    partial class AddCarparkStaging
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");

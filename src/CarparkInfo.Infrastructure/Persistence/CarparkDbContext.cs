@@ -54,6 +54,9 @@ public sealed class CarparkDbContext : DbContext
     /// <summary>Refresh tokens, stored hashed.</summary>
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    /// <summary>Validated rows awaiting the atomic merge. Truncated every run.</summary>
+    public DbSet<CarparkStagingRow> CarparkStaging => Set<CarparkStagingRow>();
+
     /// <summary>Ingestion run history.</summary>
     public DbSet<JobRun> JobRuns => Set<JobRun>();
 

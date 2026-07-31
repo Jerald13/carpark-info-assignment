@@ -19,7 +19,7 @@ internal sealed class JobRunConfiguration : IEntityTypeConfiguration<JobRun>
         // Enums stored as text: a status column that reads "Succeeded" rather than "2" is worth
         // the handful of bytes to anyone reading the table during an incident.
         builder.Property(r => r.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
-        builder.Property(r => r.FileMode).HasColumnName("file_mode").HasConversion<string>().HasMaxLength(20);
+        builder.Property(r => r.Mode).HasColumnName("file_mode").HasConversion<string>().HasMaxLength(20);
 
         builder.Property(r => r.StartedAt).HasColumnName("started_at");
         builder.Property(r => r.CompletedAt).HasColumnName("completed_at");

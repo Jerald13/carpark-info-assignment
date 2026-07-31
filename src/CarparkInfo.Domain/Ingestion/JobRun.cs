@@ -3,17 +3,21 @@ namespace CarparkInfo.Domain.Ingestion;
 /// <summary>How a source file's contents relate to the existing catalogue.</summary>
 /// <remarks>
 /// <para>
+/// Named <c>IngestionMode</c> rather than <c>FileMode</c> to avoid colliding with
+/// <see cref="System.IO.FileMode"/>, which implicit usings bring into every file.
+/// </para>
+/// <para>
 /// A genuine ambiguity in the brief, handled explicitly. The README calls the feed a "daily delta
 /// file", but the supplied file contains 2,181 rows -- the complete HDB inventory, which is a
 /// snapshot. The two readings disagree on one question: what does <i>absence</i> from the file mean?
 /// </para>
 /// <para>
-/// Guessing <see cref="Snapshot"/> and then receiving a genuine three-row delta would deactivate
-/// 2,178 carparks. <see cref="Delta"/> is therefore the default, and snapshot deactivation is
+/// Guessing <see cref="IngestionMode.Snapshot"/> and then receiving a genuine three-row delta would deactivate
+/// 2,178 carparks. <see cref="IngestionMode.Delta"/> is therefore the default, and snapshot deactivation is
 /// capped by a ratio guard. The mode is recorded on every run so past runs stay auditable.
 /// </para>
 /// </remarks>
-public enum FileMode
+public enum IngestionMode
 {
     /// <summary>Absence means unchanged. Rows not in the file are left alone. The default.</summary>
     Delta = 0,
@@ -70,11 +74,11 @@ public sealed class JobRun
     /// <param name="jobName">The job's name.</param>
     /// <param name="fileName">The source file being processed.</param>
     /// <param name="fileHash">SHA-256 of the file's bytes. The idempotency key.</param>
-    /// <param name="fileMode">Delta or snapshot semantics.</param>
+    /// <param name="mode">Delta or snapshot semantics.</param>
     /// <param name="hostName">The machine executing the run.</param>
     /// <param name="startedAt">When the run started.</param>
     /// <param name="attemptNumber">Which attempt this is, for retries.</param>
-    public JobRun(string jobName, string fileName, string fileHash, FileMode fileMode,
+    public JobRun(string jobName, string fileName, string fileHash, IngestionMode mode,
         string hostName, DateTimeOffset startedAt, int attemptNumber = 1)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
@@ -83,7 +87,7 @@ public sealed class JobRun
         JobName = jobName;
         FileName = fileName;
         FileHash = fileHash;
-        FileMode = fileMode;
+        Mode = mode;
         HostName = hostName;
         StartedAt = startedAt;
         AttemptNumber = attemptNumber;
@@ -107,7 +111,7 @@ public sealed class JobRun
     public JobRunStatus Status { get; private set; }
 
     /// <summary>Whether the file was treated as a delta or a snapshot.</summary>
-    public FileMode FileMode { get; private set; }
+    public IngestionMode Mode { get; private set; }
 
     /// <summary>When the run started.</summary>
     public DateTimeOffset StartedAt { get; private set; }
