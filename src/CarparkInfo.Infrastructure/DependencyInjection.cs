@@ -62,6 +62,11 @@ public static class DependencyInjection
         services.AddScoped<CarparkIngestionService>();
 
         services.AddScoped<ICarparkRepository, Persistence.CarparkRepository>();
+        services.AddScoped<IFavouriteRepository, Persistence.FavouriteRepository>();
+        services.AddScoped<IUserRepository, Auth.UserRepository>();
+        services.AddSingleton<IPasswordHasher, Auth.Pbkdf2PasswordHasher>();
+        services.AddScoped<ITokenService, Auth.JwtTokenService>();
+        services.AddScoped<CarparkInfo.Application.Auth.AuthenticationService>();
 
         services.AddOptions<IngestionOptions>()
             .Bind(configuration.GetSection(IngestionOptions.SectionName))

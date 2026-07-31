@@ -1,6 +1,7 @@
 using CarparkInfo.Api.Contracts;
 using CarparkInfo.Application.Abstractions;
 using CarparkInfo.Application.Carparks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CarparkInfo.Api.Controllers;
@@ -15,6 +16,10 @@ namespace CarparkInfo.Api.Controllers;
 [ApiController]
 [Route("api/v1/carparks")]
 [Produces("application/json")]
+// Search is public. The fallback policy requires authentication, so this opts out
+// explicitly - which is the point of failing closed: making something public is a
+// visible, reviewable act rather than an omission.
+[AllowAnonymous]
 public sealed class CarparksController : ControllerBase
 {
     private readonly ICarparkRepository _carparks;

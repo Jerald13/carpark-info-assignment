@@ -76,27 +76,43 @@ internal sealed class ShortTermParkingTypeConfiguration : IEntityTypeConfigurati
         builder.HasData(
             new
             {
-                Id = 1, Code = "WHOLE_DAY", Description = "WHOLE DAY",
-                StartTime = (TimeOnly?)null, EndTime = (TimeOnly?)null,
-                IsWholeDay = true, IsAvailable = true,
+                Id = 1,
+                Code = "WHOLE_DAY",
+                Description = "WHOLE DAY",
+                StartTime = (TimeOnly?)null,
+                EndTime = (TimeOnly?)null,
+                IsWholeDay = true,
+                IsAvailable = true,
             },                                                                          // 1,758
             new
             {
-                Id = 2, Code = "T0700_2230", Description = "7AM-10.30PM",
-                StartTime = (TimeOnly?)new TimeOnly(7, 0), EndTime = (TimeOnly?)new TimeOnly(22, 30),
-                IsWholeDay = false, IsAvailable = true,
+                Id = 2,
+                Code = "T0700_2230",
+                Description = "7AM-10.30PM",
+                StartTime = (TimeOnly?)new TimeOnly(7, 0),
+                EndTime = (TimeOnly?)new TimeOnly(22, 30),
+                IsWholeDay = false,
+                IsAvailable = true,
             },                                                                          //   261
             new
             {
-                Id = 3, Code = "NONE", Description = "NO",
-                StartTime = (TimeOnly?)null, EndTime = (TimeOnly?)null,
-                IsWholeDay = false, IsAvailable = false,
+                Id = 3,
+                Code = "NONE",
+                Description = "NO",
+                StartTime = (TimeOnly?)null,
+                EndTime = (TimeOnly?)null,
+                IsWholeDay = false,
+                IsAvailable = false,
             },                                                                          //   119
             new
             {
-                Id = 4, Code = "T0700_1900", Description = "7AM-7PM",
-                StartTime = (TimeOnly?)new TimeOnly(7, 0), EndTime = (TimeOnly?)new TimeOnly(19, 0),
-                IsWholeDay = false, IsAvailable = true,
+                Id = 4,
+                Code = "T0700_1900",
+                Description = "7AM-7PM",
+                StartTime = (TimeOnly?)new TimeOnly(7, 0),
+                EndTime = (TimeOnly?)new TimeOnly(19, 0),
+                IsWholeDay = false,
+                IsAvailable = true,
             });                                                                         //    43
     }
 }
@@ -126,21 +142,33 @@ internal sealed class FreeParkingTypeConfiguration : IEntityTypeConfiguration<Fr
         builder.HasData(
             new
             {
-                Id = 1, Code = "NONE", Description = "NO",
-                StartTime = (TimeOnly?)null, EndTime = (TimeOnly?)null,
-                AppliesOnSundaysAndPublicHolidays = false, IsOffered = false,
+                Id = 1,
+                Code = "NONE",
+                Description = "NO",
+                StartTime = (TimeOnly?)null,
+                EndTime = (TimeOnly?)null,
+                AppliesOnSundaysAndPublicHolidays = false,
+                IsOffered = false,
             },                                                                          //   576
             new
             {
-                Id = 2, Code = "SUN_PH_0700_2230", Description = "SUN & PH FR 7AM-10.30PM",
-                StartTime = (TimeOnly?)new TimeOnly(7, 0), EndTime = (TimeOnly?)new TimeOnly(22, 30),
-                AppliesOnSundaysAndPublicHolidays = true, IsOffered = true,
+                Id = 2,
+                Code = "SUN_PH_0700_2230",
+                Description = "SUN & PH FR 7AM-10.30PM",
+                StartTime = (TimeOnly?)new TimeOnly(7, 0),
+                EndTime = (TimeOnly?)new TimeOnly(22, 30),
+                AppliesOnSundaysAndPublicHolidays = true,
+                IsOffered = true,
             },                                                                          // 1,594
             new
             {
-                Id = 3, Code = "SUN_PH_1300_2230", Description = "SUN & PH FR 1PM-10.30PM",
-                StartTime = (TimeOnly?)new TimeOnly(13, 0), EndTime = (TimeOnly?)new TimeOnly(22, 30),
-                AppliesOnSundaysAndPublicHolidays = true, IsOffered = true,
+                Id = 3,
+                Code = "SUN_PH_1300_2230",
+                Description = "SUN & PH FR 1PM-10.30PM",
+                StartTime = (TimeOnly?)new TimeOnly(13, 0),
+                EndTime = (TimeOnly?)new TimeOnly(22, 30),
+                AppliesOnSundaysAndPublicHolidays = true,
+                IsOffered = true,
             });                                                                         //    11
     }
 }
