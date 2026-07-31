@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CarparkInfo.Infrastructure\CarparkInfo.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\CarparkInfo.Domain\CarparkInfo.Domain.csproj" />
+    <ProjectReference Include="..\..\src\CarparkInfo.Application\CarparkInfo.Application.csproj" />
   </ItemGroup>
 
   
