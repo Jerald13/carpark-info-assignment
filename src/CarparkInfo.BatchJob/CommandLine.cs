@@ -19,6 +19,9 @@ public sealed record CommandLineOptions
 
     /// <summary>Print usage and exit.</summary>
     public bool ShowHelp { get; init; }
+
+    /// <summary>Generate a synthetic load-test file of this many rows instead of ingesting.</summary>
+    public int? GenerateRows { get; init; }
 }
 
 /// <summary>Parses the batch job's command line.</summary>
@@ -39,6 +42,7 @@ public static class CommandLine
         var mode = IngestionMode.Delta;
         var force = false;
         var scheduled = false;
+        int? generateRows = null;
         var help = args.Length == 0 && !Console.IsInputRedirected;
 
         for (var i = 0; i < args.Length; i++)
@@ -63,6 +67,10 @@ public static class CommandLine
                     scheduled = true;
                     break;
 
+                case "--GENERATE-LOAD-TEST-FILE" when i + 1 < args.Length:
+                    generateRows = int.TryParse(args[++i], out var rows) ? rows : null;
+                    break;
+
                 case "--HELP" or "-H" or "-?":
                     help = true;
                     break;
@@ -79,6 +87,7 @@ public static class CommandLine
             Force = force,
             Scheduled = scheduled,
             ShowHelp = help,
+            GenerateRows = generateRows,
         };
     }
 
@@ -102,6 +111,14 @@ public static class CommandLine
 
                   --force           Reprocess even if this exact file already succeeded.
                   --scheduled       Run continuously on a timer instead of once.
+
+                  --generate-load-test-file <rows>
+                                    Write a synthetic CSV of <rows> rows sampled from the real
+                                    dataset's distribution, then exit. Preserves the ~25% share of
+                                    unrestricted gantry heights and the ~8% share of addresses
+                                    containing commas, so a load test exercises the paths that
+                                    matter rather than a uniform synthetic one.
+
               -h, --help            Show this message.
 
             Examples:

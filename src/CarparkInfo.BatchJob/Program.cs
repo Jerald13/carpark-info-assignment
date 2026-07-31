@@ -28,6 +28,20 @@ if (options.ShowHelp)
     return 0;
 }
 
+if (options.GenerateRows is { } rowCount)
+{
+    var target = options.FilePath ?? $"load-test-{rowCount}.csv";
+    var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+    Console.WriteLine($"Generating {rowCount:N0} rows into {target}...");
+    var bytes = LoadTestGenerator.Generate(target, rowCount);
+    stopwatch.Stop();
+
+    Console.WriteLine($"  {bytes / 1024.0 / 1024.0:N1} MB in {stopwatch.Elapsed.TotalSeconds:N1}s");
+    Console.WriteLine($"  Ingest it with: --file {target}");
+    return 0;
+}
+
 // Scheduled mode runs as a long-lived worker; otherwise this is a one-shot CLI invocation.
 if (options.Scheduled)
 {
