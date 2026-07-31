@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CarparkInfo.Application\CarparkInfo.Application.csproj" />
+    <ProjectReference Include="..\..\src\CarparkInfo.Domain\CarparkInfo.Domain.csproj" />
+    <ProjectReference Include="..\..\src\CarparkInfo.Infrastructure\CarparkInfo.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\CarparkInfo.Api\CarparkInfo.Api.csproj" />
+  </ItemGroup>
+
+  
+
+  
+
+  <ItemGroup>
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,35 @@
+<Project>
+
+  <!-- Inherit everything from the solution root, then relax what only makes sense for tests. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+
+    <!-- Test methods are self-documenting via their names; XML docs on them would be noise. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!--
+      CS1591 - missing XML comment. Not wanted on test methods.
+      CA1707 - "remove underscores from member name". That rule targets public API surface;
+               our test convention is deliberately Method_scenario_expected_result
+               (PLAN.md 13.3, SKILLS.md 7.9) because it reads as a sentence in test output.
+      CA1515 - "type can be made internal". Test classes must stay public for the runner.
+    -->
+    <NoWarn>$(NoWarn);CS1591;CA1707;CA1515</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Label="Available to every test project">
+    <PackageReference Include="xunit.v3.mtp-v2" />
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+  <ItemGroup Label="Global usings for every test project">
+    <Using Include="Xunit" />
+    <Using Include="AwesomeAssertions" />
+  </ItemGroup>
+
+</Project>

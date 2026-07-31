@@ -1,0 +1,39 @@
+<Project>
+
+  <!--
+    Solution-wide build settings. Imported automatically by every project, so no .csproj
+    declares a TargetFramework, LangVersion or analysis setting of its own.
+    See PLAN.md section 0 for the versions and the reasoning behind them.
+  -->
+
+  <PropertyGroup Label="Framework">
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Quality gates">
+    <!-- A warning that can be ignored will be ignored. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-Recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <!-- XML docs feed the OpenAPI document (PLAN.md 7.5), so missing docs are a build error. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Determinism and debugging">
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <DebugType>portable</DebugType>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Metadata">
+    <Company>Carpark Information System</Company>
+    <Authors>Jerald Lee</Authors>
+    <NeutralLanguage>en-SG</NeutralLanguage>
+  </PropertyGroup>
+
+</Project>

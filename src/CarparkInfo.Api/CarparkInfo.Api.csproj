@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CarparkInfo.Application\CarparkInfo.Application.csproj" />
+    <ProjectReference Include="..\CarparkInfo.Infrastructure\CarparkInfo.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

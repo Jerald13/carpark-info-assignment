@@ -1,0 +1,118 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Working documents — NOT submitted
+#
+# These are planning and design artefacts, not part of the deliverable.
+# See the WARNING at the bottom of this file before adding to this list.
+# ─────────────────────────────────────────────────────────────────────────────
+/PLAN.md
+/SKILLS.md
+/APPROACH.md
+/ARCHITECTURE.md
+/PROGRESS.md
+/docs/architecture/
+/.claude/
+
+# Explicitly kept — these are graded deliverables, never ignore them:
+!/README.md
+!/docs/er-diagram.md
+!/docs/performance.md
+
+# ─────────────────────────────────────────────────────────────────────────────
+# .NET
+# ─────────────────────────────────────────────────────────────────────────────
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+artifacts/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+*.dll
+*.exe
+*.pdb
+*.cache
+project.lock.json
+project.fragment.lock.json
+
+# Test / coverage
+[Tt]est[Rr]esult*/
+TestResults/
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+.coverlet/
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Database — never commit a built database
+# ─────────────────────────────────────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Secrets — never commit credentials
+# ─────────────────────────────────────────────────────────────────────────────
+appsettings.*.local.json
+appsettings.Production.json
+secrets.json
+*.pfx
+*.key
+*.pem
+.env
+.env.*
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Batch job runtime directories
+# ─────────────────────────────────────────────────────────────────────────────
+/intake/inbox/*
+/intake/processed/*
+/intake/quarantine/*
+!/intake/**/.gitkeep
+
+# Generated load-test files (can be hundreds of MB)
+*load-test*.csv
+*.generated.csv
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IDE / OS
+# ─────────────────────────────────────────────────────────────────────────────
+.vs/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ⚠  WARNING — read before extending the working-documents list above
+#
+# The assignment README names exactly two required artefacts:
+#
+#     "ER diagram should be provided."
+#     "Swagger documentation should be provided."
+#
+# The ER diagram currently lives inside PLAN.md and docs/architecture/
+# DATA-ARCHITECTURE.md, both of which are ignored above. Before submitting,
+# EITHER extract the diagram to /docs/er-diagram.md (already whitelisted),
+# OR embed it in README.md — otherwise a graded, explicitly-named deliverable
+# is missing from the repository.
+#
+# A blanket `*.md` rule is deliberately NOT used here: it would also ignore
+# README.md, which is the first and often only file a reviewer opens.
+# ─────────────────────────────────────────────────────────────────────────────
