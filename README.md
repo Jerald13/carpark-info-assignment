@@ -25,10 +25,24 @@ dotnet run --project src/CarparkInfo.BatchJob -- \
 dotnet run --project src/CarparkInfo.Api
 ```
 
-Then open **<https://localhost:7293/swagger>**.
+Then open **<http://localhost:5106/swagger>** — note **http**, not https.
 
 The database is created and migrated automatically. Nothing else to install, no connection string
 to edit.
+
+> **Why HTTP?** .NET ships a self-signed development certificate that is **not trusted until you
+> say so**. Until then, `https://localhost:7293` is refused by the browser at the TLS handshake and
+> Swagger sits on “LOADING” for ever — which looks like a broken API but is only an untrusted
+> certificate.
+>
+> HTTP works immediately: HTTPS redirection is applied in Production only, deliberately, so a
+> reviewer never has to trust anything before clicking **Execute**.
+>
+> To use HTTPS instead, run this once and restart the browser:
+>
+> ```bash
+> dotnet dev-certs https --trust      # then accept the Windows prompt
+> ```
 
 ### Try the user stories
 
