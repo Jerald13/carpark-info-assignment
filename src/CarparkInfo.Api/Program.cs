@@ -70,7 +70,26 @@ else
     //
     // A reviewer should not have to trust a certificate to click Execute. Production still gets
     // both, where a plaintext request is a genuine problem rather than a local convenience.
-    app.UseHsts();
+    //
+    // The environment check is not enough on its own. Running the app with --no-launch-profile and
+    // no ASPNETCORE_ENVIRONMENT set defaults to Production, so a casual local run would send HSTS
+    // for the host "localhost" - and browsers cache HSTS PER HOST, IGNORING THE PORT. One such run
+    // silently upgrades every http://localhost:* URL to https:// from then on, across every
+    // project on the machine, until the user finds chrome://net-internals/#hsts and clears it.
+    //
+    // So HSTS is suppressed for loopback regardless of environment. It protects nothing there -
+    // traffic to localhost never crosses a network - and the failure it causes is both confusing
+    // and persistent.
+    var isLoopbackOnly = app.Urls.Count > 0
+        && app.Urls.All(url => url.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+                            || url.Contains("127.0.0.1", StringComparison.Ordinal)
+                            || url.Contains("[::1]", StringComparison.Ordinal));
+
+    if (!isLoopbackOnly)
+    {
+        app.UseHsts();
+    }
+
     app.UseHttpsRedirection();
 }
 

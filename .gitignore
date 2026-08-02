@@ -126,3 +126,6 @@ src/CarparkInfo.Api/carpark.db*
 **/intake/processed/*
 **/intake/quarantine/*
 !**/intake/**/.gitkeep
+
+# Smoke-test database
+smoke.db*

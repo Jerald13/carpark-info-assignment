@@ -44,6 +44,31 @@ to edit.
 > dotnet dev-certs https --trust      # then accept the Windows prompt
 > ```
 
+<details>
+<summary><b>Swagger still spins on “LOADING”? Clear the HSTS pin.</b></summary>
+
+If <code>curl http://localhost:5106/api/v1/carparks?pageSize=1</code> returns <code>200</code> but
+the browser still hangs, the browser has cached an HSTS policy for <code>localhost</code> and is
+silently upgrading every <code>http://localhost:*</code> URL to <code>https://</code> — where
+nothing is listening.
+
+Browsers cache HSTS **per host, ignoring the port**, so a single run of *any* ASP.NET Core app in
+Production mode on localhost pins it for every project on the machine.
+
+Confirm it: **F12 → Network → Execute**. If the request shows `https://` when you typed `http://`,
+or `(failed)`, that is HSTS.
+
+Fix it in Chrome or Edge:
+
+1. Open `chrome://net-internals/#hsts` (or `edge://net-internals/#hsts`)
+2. Under **Delete domain security policies**, enter `localhost` and click **Delete**
+3. Close every browser window and reopen
+
+This app never sends HSTS on loopback, precisely to avoid causing it — see the comment in
+`Program.cs`.
+
+</details>
+
 ### Try the user stories
 
 ```bash
@@ -239,7 +264,8 @@ take about an hour, and I would do it on request.
 ## Verify it yourself
 
 ```bash
-pwsh ./check.ps1          # runs exactly what CI runs
+pwsh ./check.ps1          # build, format, tests, vulnerability audit
+pwsh ./smoke.ps1          # starts the API and walks this README end to end
 ```
 
 ```
@@ -249,6 +275,11 @@ pwsh ./check.ps1          # runs exactly what CI runs
 4. test                         PASS      215 tests
 5. vulnerable packages          PASS
 ```
+
+`smoke.ps1` exists because the test suites cannot answer "does a reviewer who clones this get a
+working system?". They call the API in-process, which never touches a real socket, an HTTP
+redirect, or the OpenAPI document Swagger UI has to consume. A defect in any of those leaves every
+test green while the page spins for ever — which happened once, and is why the check exists.
 
 The tests run against **all 2,181 real carparks** loaded through the real ingestion pipeline, not
 fixtures — a five-row fixture could not catch the height regression they exist to prevent. Counts

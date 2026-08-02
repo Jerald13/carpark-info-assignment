@@ -27,13 +27,26 @@ public sealed class CarparkSearchRequest
     [DefaultValue(null)]
     public decimal? VehicleHeight { get; init; }
 
-    /// <summary>Restrict to these carpark types. Repeat the parameter for several.</summary>
+    /// <summary>
+    /// Restrict to these carpark types. Comma-separate for several, e.g.
+    /// <c>MULTI_STOREY,BASEMENT</c>. Codes come from <c>GET /api/v1/carparks/lookups</c>.
+    /// </summary>
     /// <example>MULTI_STOREY</example>
-    public string[]? CarParkType { get; init; }
+    /// <remarks>
+    /// A comma-separated string rather than a repeated array parameter, deliberately. Swagger UI
+    /// runs JSON.parse over any parameter typed as an array, so a plain value in the box throws
+    /// "Could not parse parameter value string as JSON Object or JSON Array" and aborts the
+    /// request before it is ever sent - the page just spins. A string renders as an ordinary text
+    /// box and works. Repeated parameters still bind, because ASP.NET Core joins them with commas.
+    /// </remarks>
+    public string? CarParkType { get; init; }
 
-    /// <summary>Restrict to these parking systems.</summary>
+    /// <summary>
+    /// Restrict to these parking systems. Comma-separate for several, e.g.
+    /// <c>ELECTRONIC,COUPON</c>.
+    /// </summary>
     /// <example>ELECTRONIC</example>
-    public string[]? ParkingSystem { get; init; }
+    public string? ParkingSystem { get; init; }
 
     /// <summary>Case-insensitive substring match on the address.</summary>
     /// <example>BISHAN</example>
@@ -132,13 +145,22 @@ public sealed class CarparkSearchRequest
         FreeParkingOnly = FreeParking,
         NightParkingOnly = NightParking,
         MinimumVehicleHeightMetres = VehicleHeight,
-        CarParkTypeCodes = CarParkType ?? [],
-        ParkingSystemCodes = ParkingSystem ?? [],
+        CarParkTypeCodes = SplitCodes(CarParkType),
+        ParkingSystemCodes = SplitCodes(ParkingSystem),
         AddressContains = Address,
         Latitude = Lat,
         Longitude = Lon,
         RadiusKilometres = RadiusKm,
     };
+
+    /// <summary>Splits a comma-separated list into codes, ignoring blanks and whitespace.</summary>
+    /// <param name="value">The raw query-string value.</param>
+    /// <returns>The codes, uppercased and trimmed.</returns>
+    private static IReadOnlyList<string> SplitCodes(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? []
+            : [.. value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                       .Select(code => code.ToUpperInvariant())];
 
     /// <summary>Converts to a page request.</summary>
     /// <returns>The page request.</returns>

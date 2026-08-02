@@ -50,6 +50,13 @@ jobs:
           fi
           echo "No vulnerable packages."
 
+      # The suites above call the API in-process. This starts it on a real socket and walks the
+      # README's own instructions, because that is the path a reviewer takes and the only one that
+      # catches a broken redirect, an unusable OpenAPI document, or a Swagger page that spins.
+      - name: Smoke test the reviewer's path
+        shell: pwsh
+        run: ./smoke.ps1
+
       # Informational only: outdated packages are a prompt to review, not a reason to fail.
       - name: Report outdated packages
         continue-on-error: true
