@@ -1,0 +1,49 @@
+erDiagram
+    CAR_PARK_TYPE           ||--o{ CARPARK : classifies
+    PARKING_SYSTEM_TYPE     ||--o{ CARPARK : "billed via"
+    SHORT_TERM_PARKING_TYPE ||--o{ CARPARK : "short-term policy"
+    FREE_PARKING_TYPE       ||--o{ CARPARK : "free-parking policy"
+
+    CARPARK {
+        int      id PK "surrogate"
+        string   car_park_no UK "the public identifier"
+        string   address "free text, contains commas"
+        double   latitude "derived WGS84 - map ready"
+        double   longitude "derived WGS84"
+        decimal  svy21_x "source easting"
+        decimal  svy21_y "source northing"
+        bool     has_night_parking "USER STORY 2"
+        int      deck_count
+        decimal  gantry_height_m "NULL = no limit - USER STORY 3"
+        bool     has_height_restriction "false for 0.00 and 9.99"
+        decimal  gantry_height_raw "source value, kept for audit"
+        bool     has_basement
+        string   source_row_hash "skips no-op updates"
+        bool     is_active "soft delete"
+    }
+    FREE_PARKING_TYPE {
+        int      id PK
+        string   code UK "NONE, SUN_PH_0700_2230, SUN_PH_1300_2230"
+        string   description "source text - there is NO 'YES'"
+        time     start_time
+        time     end_time
+        bool     is_offered "USER STORY 1 - false only for NONE"
+    }
+    CAR_PARK_TYPE {
+        int      id PK
+        string   code UK "SURFACE, MULTI_STOREY, BASEMENT, ..."
+        string   name "source text, verbatim"
+    }
+    PARKING_SYSTEM_TYPE {
+        int      id PK
+        string   code UK "ELECTRONIC, COUPON"
+        string   name
+    }
+    SHORT_TERM_PARKING_TYPE {
+        int      id PK
+        string   code UK "WHOLE_DAY, T0700_2230, T0700_1900, NONE"
+        string   description
+        time     start_time
+        time     end_time
+        bool     is_available
+    }

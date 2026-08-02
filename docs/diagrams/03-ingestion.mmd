@@ -1,0 +1,49 @@
+erDiagram
+    JOB_RUN ||--o{ JOB_RUN_ERROR : "records every defect"
+    JOB_RUN ||--o{ CARPARK_STAGING : "loads, then swaps atomically"
+    JOB_RUN ||--o{ CARPARK : "last written by"
+
+    JOB_RUN {
+        int      id PK
+        string   file_name
+        string   file_hash "SHA-256 - the idempotency key"
+        string   status "Running, Succeeded, RolledBack, Failed, Skipped"
+        string   file_mode "Delta or Snapshot"
+        datetime started_at
+        datetime completed_at
+        datetime lease_expires_at "crash detection"
+        string   host_name "stops two hosts ingesting at once"
+        int      records_read
+        int      records_inserted
+        int      records_updated
+        int      records_unchanged "the scaling property"
+        int      records_deactivated
+        int      records_rejected
+        int      attempt_number
+        string   error_summary
+    }
+    JOB_RUN_ERROR {
+        int      id PK
+        int      job_run_id FK
+        int      line_number "the exact line in the file"
+        string   car_park_no
+        string   field_name
+        string   error_code
+        string   severity "Error blocks, Warning still ingests"
+        string   message
+        string   raw_line "the offending text, verbatim"
+    }
+    CARPARK_STAGING {
+        int      id PK
+        int      job_run_id FK
+        string   car_park_no
+        string   all_source_columns "mirrors CARPARK, pre-merge"
+        string   source_row_hash
+        int      line_number
+    }
+    CARPARK {
+        int      id PK
+        string   car_park_no UK
+        bool     is_active
+        int      last_job_run_id FK "full lineage"
+    }

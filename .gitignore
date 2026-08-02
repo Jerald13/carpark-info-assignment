@@ -129,3 +129,7 @@ src/CarparkInfo.Api/carpark.db*
 
 # Smoke-test database
 smoke.db*
+
+# Mermaid CLI is installed on demand to regenerate diagrams; not a project dependency
+node_modules/
+package-lock.json

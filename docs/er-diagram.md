@@ -8,7 +8,87 @@
 
 ---
 
-## Diagram
+## How to read this
+
+A ten-table diagram is not meant to be absorbed in one go. Reviewers typically spend under a minute
+on one, doing three things: find the table everything points at, follow the arrows outward in
+groups, then spot-check a few columns to see whether the data was thought about.
+
+So the model is presented in **three focused views first**, each answering one question, with the
+complete diagram at the end for reference. Every image is **SVG** - click it and zoom as far as you
+like without blurring.
+
+| View | Answers |
+|---|---|
+| [1. The carpark and its lookups](#1-the-carpark-and-its-lookups) | How is the source data normalised, and where do the three user-story filters live? |
+| [2. Users and favourites](#2-users-and-favourites) | Who owns a favourite, and how is that enforced? |
+| [3. Ingestion audit](#3-ingestion-audit) | What happened during last night's run, and how would I recover it? |
+| [4. Everything](#4-the-complete-model) | The full picture, for reference |
+
+---
+
+## 1. The carpark and its lookups
+
+**The centre of the model.** `CARPARK` is the aggregate root; the four lookup tables exist because
+those columns repeat thousands of times in a flat CSV.
+
+[![Carpark and lookups](diagrams/01-core.svg)](diagrams/01-core.svg)
+
+Three columns are worth looking at closely:
+
+- **`gantry_height_m` is nullable, and `has_height_restriction` sits beside it.** That pair is user
+  story 3. `NULL` means *no gantry exists*, which is what the source's `0.00` actually encodes -
+  see [section 3](#3-gantry_height--the-critical-transformation).
+- **`free_parking_type_id` is a foreign key, not a boolean.** Free parking is a *schedule*; the
+  source has no `YES` value at all.
+- **`latitude` / `longitude` are derived** from the SVY21 columns at ingestion, because no map SDK
+  can plot SVY21.
+
+---
+
+## 2. Users and favourites
+
+[![Users and favourites](diagrams/02-users.svg)](diagrams/02-users.svg)
+
+Two things this view is meant to show:
+
+- **`USER_FAVOURITE` has a composite primary key** `(user_id, carpark_id)`. A duplicate favourite is
+  impossible even by direct SQL, which is what makes the idempotent `PUT` a guarantee rather than a
+  convention.
+- **`REFRESH_TOKEN.replaced_by_id` points at its successor**, forming a rotation chain. That chain is
+  what makes reuse detection possible: a single-use token presented twice means a copy exists, so
+  every token in the chain is revoked.
+
+`app_user.id` is reachable only from the JWT `sub` claim. No endpoint accepts a user identifier.
+
+---
+
+## 3. Ingestion audit
+
+[![Ingestion audit](diagrams/03-ingestion.svg)](diagrams/03-ingestion.svg)
+
+This is the half of the schema that exists purely so a failure at 03:00 is diagnosable:
+
+- **`CARPARK_STAGING`** absorbs the whole file in batches, so only the final swap needs to be atomic.
+  Truncated at the start and end of every run; never a source of truth.
+- **`JOB_RUN.lease_expires_at`** is heartbeated. An expired lease on a `Running` row means the
+  process died, and the next startup reclaims it automatically.
+- **`JOB_RUN_ERROR`** carries the line number, the field and the raw text, so a source file can be
+  corrected without reading a log.
+- **`records_unchanged`** is the scaling property: on a real delta most rows match their hash and
+  are never written.
+
+---
+
+## 4. The complete model
+
+[![Complete ER diagram](diagrams/00-full.svg)](diagrams/00-full.svg)
+
+The Mermaid source below is the record of truth - it renders inline on GitHub, diffs like code, and
+the images above are generated from it, so the two cannot drift apart.
+
+<details>
+<summary><b>Mermaid source</b></summary>
 
 ```mermaid
 erDiagram
@@ -153,6 +233,8 @@ erDiagram
     }
 ```
 
+</details>
+
 ---
 
 ## Design notes
@@ -269,6 +351,12 @@ plan.Should().NotContain("SCAN carpark");
 ```
 
 ---
+
+> **Regenerating the images.** They are produced from the `.mmd` files in `docs/diagrams/`:
+>
+> ```bash
+> npx -y @mermaid-js/mermaid-cli -i docs/diagrams/01-core.mmd >     -o docs/diagrams/01-core.svg -b white
+> ```
 
 *All counts measured directly from `hdb-carpark-information-20220824010400.csv`.
 Diagram is Mermaid and renders natively on GitHub.*

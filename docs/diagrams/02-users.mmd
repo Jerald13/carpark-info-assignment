@@ -1,0 +1,34 @@
+erDiagram
+    APP_USER ||--o{ USER_FAVOURITE : favourites
+    CARPARK  ||--o{ USER_FAVOURITE : "is favourited in"
+    APP_USER ||--o{ REFRESH_TOKEN : holds
+
+    APP_USER {
+        int      id PK "from the JWT 'sub' claim ONLY"
+        string   email UK
+        string   password_hash "PBKDF2-HMAC-SHA256, 210k iterations"
+        string   display_name
+        string   role "User or Admin"
+        int      failed_login_count "5 strikes"
+        datetime lockout_ends_at
+        datetime created_at
+    }
+    USER_FAVOURITE {
+        int      user_id PK "composite key makes"
+        int      carpark_id PK "duplicates impossible"
+        datetime created_at
+    }
+    REFRESH_TOKEN {
+        int      id PK
+        int      user_id FK
+        string   token_hash UK "the raw token is NEVER stored"
+        datetime expires_at
+        datetime revoked_at
+        int      replaced_by_id FK "rotation chain - enables reuse detection"
+        string   created_by_ip
+    }
+    CARPARK {
+        int      id PK
+        string   car_park_no UK
+        string   address
+    }

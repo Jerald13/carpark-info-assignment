@@ -1,0 +1,140 @@
+erDiagram
+    CAR_PARK_TYPE            ||--o{ CARPARK : classifies
+    PARKING_SYSTEM_TYPE      ||--o{ CARPARK : "billed via"
+    SHORT_TERM_PARKING_TYPE  ||--o{ CARPARK : "short-term policy"
+    FREE_PARKING_TYPE        ||--o{ CARPARK : "free-parking policy"
+    CARPARK                  ||--o{ USER_FAVOURITE : "is favourited in"
+    APP_USER                 ||--o{ USER_FAVOURITE : favourites
+    APP_USER                 ||--o{ REFRESH_TOKEN : holds
+    JOB_RUN                  ||--o{ JOB_RUN_ERROR : records
+    JOB_RUN                  ||--o{ CARPARK : "last written by"
+    JOB_RUN                  ||--o{ CARPARK_STAGING : loads
+
+    CAR_PARK_TYPE {
+        int      id PK
+        string   code UK "SURFACE, MULTI_STOREY, BASEMENT, COVERED, SURFACE_MULTI_STOREY, MECHANISED, MECHANISED_AND_SURFACE"
+        string   name     "source text, verbatim"
+        bool     is_active
+    }
+
+    PARKING_SYSTEM_TYPE {
+        int      id PK
+        string   code UK  "ELECTRONIC, COUPON"
+        string   name      "source text, verbatim"
+    }
+
+    SHORT_TERM_PARKING_TYPE {
+        int      id PK
+        string   code UK      "WHOLE_DAY, T0700_2230, T0700_1900, NONE"
+        string   description  "source text, verbatim"
+        time     start_time   "NULL when WHOLE_DAY or NONE"
+        time     end_time     "NULL when WHOLE_DAY or NONE"
+        bool     is_whole_day
+        bool     is_available "FALSE only for NONE"
+    }
+
+    FREE_PARKING_TYPE {
+        int      id PK
+        string   code UK      "NONE, SUN_PH_0700_2230, SUN_PH_1300_2230"
+        string   description  "source text, verbatim"
+        time     start_time
+        time     end_time
+        bool     applies_sun_and_ph
+        bool     is_offered   "FALSE only for NONE -- drives the free-parking filter"
+    }
+
+    CARPARK {
+        int      id PK                      "surrogate; SQLite rowid alias"
+        string   car_park_no UK             "natural business key; the public API identifier"
+        string   address                    "free text; contains commas in source"
+        decimal  svy21_x                    "source x_coord, metres"
+        decimal  svy21_y                    "source y_coord, metres"
+        double   latitude                   "derived WGS84"
+        double   longitude                  "derived WGS84"
+        int      car_park_type_id FK
+        int      parking_system_type_id FK
+        int      short_term_parking_type_id FK
+        int      free_parking_type_id FK
+        bool     has_night_parking
+        int      deck_count
+        decimal  gantry_height_m            "NULL = unrestricted -- see note 3"
+        bool     has_height_restriction     "FALSE for source 0.00 and 9.99"
+        decimal  gantry_height_raw          "source verbatim, retained for audit"
+        bool     has_basement
+        string   source_row_hash            "SHA-256; skips no-op updates"
+        bool     is_active                  "soft delete"
+        datetime first_seen_at
+        datetime last_seen_at
+        datetime last_modified_at
+        int      last_job_run_id FK         "lineage"
+    }
+
+    APP_USER {
+        int      id PK
+        string   email UK
+        string   password_hash              "PBKDF2-HMAC-SHA256, 210k iters, per-user salt"
+        string   display_name
+        string   role                       "User | Admin"
+        bool     is_locked_out
+        int      failed_login_count
+        datetime lockout_ends_at
+        datetime created_at
+    }
+
+    USER_FAVOURITE {
+        int      user_id PK,FK
+        int      carpark_id PK,FK
+        datetime created_at
+    }
+
+    REFRESH_TOKEN {
+        int      id PK
+        int      user_id FK
+        string   token_hash UK              "SHA-256; the raw token is never stored"
+        datetime expires_at
+        datetime revoked_at
+        int      replaced_by_id FK          "rotation chain -- enables reuse detection"
+        string   created_by_ip
+    }
+
+    JOB_RUN {
+        int      id PK
+        string   job_name
+        string   file_name
+        string   file_hash                  "SHA-256 of file bytes -- idempotency key"
+        string   status                     "Pending|Running|Succeeded|Failed|RolledBack|Skipped"
+        string   file_mode                  "Delta | Snapshot"
+        datetime started_at
+        datetime completed_at
+        datetime lease_expires_at           "crash detection"
+        string   host_name
+        int      records_read
+        int      records_inserted
+        int      records_updated
+        int      records_unchanged
+        int      records_deactivated
+        int      records_rejected
+        int      attempt_number
+        string   error_summary
+    }
+
+    JOB_RUN_ERROR {
+        int      id PK
+        int      job_run_id FK
+        int      line_number                "exact line in the source file"
+        string   car_park_no
+        string   field_name
+        string   error_code
+        string   severity                   "Error | Warning"
+        string   message
+        string   raw_line                   "the offending line, verbatim"
+    }
+
+    CARPARK_STAGING {
+        int      id PK
+        int      job_run_id FK
+        string   car_park_no
+        string   all_source_columns         "mirrors CARPARK's source columns, pre-merge"
+        string   source_row_hash
+        int      line_number
+    }

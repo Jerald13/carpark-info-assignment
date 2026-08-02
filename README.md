@@ -199,7 +199,7 @@ Two more findings in the same vein:
 
 | Requirement | Where |
 |---|---|
-| **ER diagram** *(named deliverable)* | [docs/er-diagram.md](docs/er-diagram.md) |
+| **ER diagram** *(named deliverable)* | [docs/er-diagram.md](docs/er-diagram.md) — 3 focused views + full model, as SVG |
 | **Swagger** *(named deliverable)* | `/swagger`, document at `/openapi/v1.json` |
 | Database design, 3NF | 10 tables, 4 lookups extracted |
 | Query performance | One covering index; column order explained |
@@ -392,6 +392,7 @@ job writes — an offset shifts under a scrolling user, showing duplicates and h
 
 ## Further reading
 
-- [docs/er-diagram.md](docs/er-diagram.md) — the ER diagram and schema rationale
+- [docs/er-diagram.md](docs/er-diagram.md) — the ER diagram, as three focused views plus the
+  complete model. Every image is zoomable SVG.
 - [docs/performance.md](docs/performance.md) — measured 1M-row results
 - [docs/ASSIGNMENT.md](docs/ASSIGNMENT.md) — the original brief
