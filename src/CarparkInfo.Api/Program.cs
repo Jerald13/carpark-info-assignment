@@ -60,10 +60,20 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
+    // HSTS and HTTPS redirection are PRODUCTION behaviour and stay out of Development.
+    //
+    // With them on locally, Swagger served over http://localhost:5106 issues a 307 to
+    // https://localhost:7293 on every Execute. The browser follows it, meets the self-signed
+    // development certificate, and - unless `dotnet dev-certs https --trust` has been run - the
+    // request dies with no usable error. Swagger just spins on "LOADING" for ever, which reads as
+    // a broken API rather than an untrusted certificate.
+    //
+    // A reviewer should not have to trust a certificate to click Execute. Production still gets
+    // both, where a plaintext request is a genuine problem rather than a local convenience.
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
