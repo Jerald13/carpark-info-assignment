@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Carpark API - Data Dictionary</title>
+<style>
+  /* Light only, on purpose: this gets presented on a projector and shared as a PDF. */
+  :root{
+    color-scheme:light;
+    --bg:#ffffff; --fg:#16181d; --muted:#5c636e; --line:#e1e4e8;
+    --head:#f5f7fa; --accent:#0b5cad; --card:#fcfcfd;
+    --src:#0a7d4b; --der:#8a5a00; --req:#8b2fa0; --ops:#2b5f9e;
+    --warn:#b3261e;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  header{
+    padding:28px 24px 18px; border-bottom:1px solid var(--line);
+    position:sticky; top:0; background:var(--bg); z-index:20;
+  }
+  h1{margin:0 0 4px; font-size:22px; letter-spacing:-.2px}
+  .sub{color:var(--muted); font-size:13.5px}
+  .controls{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; align-items:center}
+  input[type=search]{
+    flex:1 1 260px; min-width:200px; padding:9px 12px; font-size:14px;
+    border:1px solid var(--line); border-radius:7px; background:var(--card); color:var(--fg);
+  }
+  input[type=search]:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .chip{
+    padding:7px 13px; font-size:13px; border:1px solid var(--line); border-radius:20px;
+    background:var(--card); color:var(--fg); cursor:pointer; user-select:none; white-space:nowrap;
+  }
+  .chip[aria-pressed=true]{background:var(--accent); border-color:var(--accent); color:#fff}
+  main{padding:20px 24px 80px; max-width:1500px}
+  h2{
+    margin:34px 0 4px; font-size:17px; letter-spacing:-.2px;
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  }
+  h2 .cnt{font-size:12.5px; color:var(--muted); font-weight:400}
+  h2 code{font-size:16px; background:none; padding:0; color:var(--accent)}
+  .lead{color:var(--muted); font-size:13.5px; margin:0 0 12px; max-width:95ch}
+  .wrap{overflow-x:auto; border:1px solid var(--line); border-radius:9px; background:var(--card)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px}
+  thead th{
+    background:var(--head); text-align:left; padding:9px 12px; font-size:11.5px;
+    text-transform:uppercase; letter-spacing:.5px; color:var(--muted);
+    border-bottom:1px solid var(--line); white-space:nowrap; font-weight:600;
+  }
+  td{padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:var(--head)}
+  .col{font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:13px; font-weight:600; white-space:nowrap}
+  .ty{font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:12px; color:var(--muted); white-space:nowrap}
+  .key{font-size:11px; font-weight:700; letter-spacing:.4px; white-space:nowrap}
+  .vals{color:var(--muted); font-size:12.5px; min-width:170px}
+  .why{min-width:340px}
+  .why b{color:var(--warn)}
+  .badge{
+    display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.5px;
+    padding:2px 7px; border-radius:4px; white-space:nowrap; text-transform:uppercase;
+  }
+  .b-source{color:var(--src); border:1px solid currentColor}
+  .b-derived{color:var(--der); border:1px solid currentColor}
+  .b-requirement{color:var(--req); border:1px solid currentColor}
+  .b-operational{color:var(--ops); border:1px solid currentColor}
+  .star{color:var(--warn); font-weight:700}
+  .none{padding:40px; text-align:center; color:var(--muted)}
+  footer{border-top:1px solid var(--line); padding:20px 24px; color:var(--muted); font-size:12.5px}
+  @media print{
+    header{position:static} .controls{display:none} .wrap{overflow:visible}
+    body{font-size:11px} td{padding:5px 7px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Carpark API &mdash; Data Dictionary</h1>
+  <div class="sub">
+    11 tables, 93 fields. Every value measured from
+    <code>src/CarparkInfo.Api/carpark.db</code> (2,181 carparks).
+  </div>
+  <div class="controls">
+    <input type="search" id="q" placeholder="Search any column, field name or reason…  (Ctrl+F also works)">
+    <button class="chip" data-o="all" aria-pressed="true">All 93</button>
+    <button class="chip" data-o="Source" aria-pressed="false">Source 21</button>
+    <button class="chip" data-o="Derived" aria-pressed="false">Derived 20</button>
+    <button class="chip" data-o="Requirement" aria-pressed="false">Requirement 18</button>
+    <button class="chip" data-o="Operational" aria-pressed="false">Operational 34</button>
+  </div>
+</header>
+
+<main id="out"></main>
+
+<footer>
+  Generated from the live database. Companion files:
+  <code>docs/data-values.csv</code> (value distributions) and
+  <code>docs/er-diagram.md</code> (the diagram itself).
+</footer>
+
+<script>
+const GROUPS = [
+ ["carpark","One row per physical carpark. 2,181 rows, all active. This is the aggregate root - everything else points at it.",[
+  ["id","INTEGER","PK","Yes","Derived","-","1 to 2181","Surrogate key. In SQLite this aliases rowid, so every foreign key that points here is a 4-byte integer instead of a repeated text key."],
+  ["car_park_no","TEXT","UK","Yes","Source","car_park_no","2181 unique, e.g. ACB, Y78M","Natural business key AND the public API identifier (/api/v1/carparks/ACB). Kept because it is what HDB publishes and what a user recognises. The surrogate id is never exposed."],
+  ["address","TEXT","","Yes","Source","address","9-68 chars, avg 26.8. 2106 start with BLK. 71 contain a comma.","<b>Deliberately NOT split</b> into block/street/postcode. Formats like 'BLK 135-138,141,142 &amp; 145 TECK WHYE LANE/AVE' make any parser lossy, the feed has no postal code, and the only query is substring search. Over-normalisation that destroys source fidelity is a defect."],
+  ["car_park_type_id","INTEGER","FK","Yes","Source","car_park_type","7 distinct. SURFACE 1087, MULTI_STOREY 1033, BASEMENT 38, +4 more","The source text SURFACE CAR PARK is stored 1087 times in a flat CSV. Extracting it to a lookup removes the update/insert/delete anomalies (3NF) and shrinks the column from a 21-byte string to a 4-byte int."],
+  ["parking_system_type_id","INTEGER","FK","Yes","Source","type_of_parking_system","2 distinct. ELECTRONIC 1998, COUPON 183","Same reasoning. Only two values, but still a table: a CHECK constraint on free text costs a schema migration the day a third payment system appears."],
+  ["short_term_parking_type_id","INTEGER","FK","Yes","Source","short_term_parking","4 distinct. WHOLE DAY 1758, 7AM-10.30PM 261, NO 119, 7AM-7PM 43","Repeats 1758 times for one value. The lookup also parses the text '7AM-10.30PM' into real start/end times ONCE at ingest, instead of on every query."],
+  ["free_parking_type_id","INTEGER","FK","Yes","Source","free_parking","3 distinct. SUN &amp; PH FR 7AM-10.30PM 1594, NO 576, SUN &amp; PH FR 1PM-10.30PM 11","<b>USER STORY 1.</b> A foreign key, not a boolean, because free parking is a SCHEDULE. The source contains no YES value at all - anyone who modelled this as bool free_parking misread the data."],
+  ["has_night_parking","INTEGER (bool)","","Yes","Source","night_parking","1 on 1795 rows, 0 on 386","<b>USER STORY 2.</b> Source is the text YES/NO. Stored as a real boolean so the filter is an index seek rather than a string comparison."],
+  ["deck_count","INTEGER","","Yes","Source","car_park_decks","0 to 21. Zero on 1093 rows. Most common non-zero: 12 (252), 10 (195)","Number of parking levels. Zero is legitimate for the 1087 surface carparks, which is why a zero deck count is recorded as a WARNING and ingested, never rejected."],
+  ["has_basement","INTEGER (bool)","","Yes","Source","car_park_basement","1 on 38 rows, 0 on 2143","Source text Y/N. The 38 matches the BASEMENT CAR PARK type count exactly - a free consistency check between two independent source columns."],
+  ["gantry_height_m","decimal","","NO (nullable)","Derived","gantry_height","NULL on 544 rows. 32 distinct, 1.7 to 5.4, avg 2.87. Most common 2.15 (807), 4.5 (437)","<b>THE most important column in the schema.</b> NULL means NO GANTRY EXISTS. Nullable on purpose: it makes the naive comparison return nothing rather than silently return a wrong answer."],
+  ["has_height_restriction","INTEGER (bool)","","Yes","Derived","gantry_height","0 on 544 rows (477 with source 0.00 + 67 with 9.99), 1 on 1637","<b>USER STORY 3.</b> Source 0.00 appears on 477 rows and ALL 477 are SURFACE CAR PARK - it means no gantry, not zero clearance. 9.99 is the source system unlimited sentinel. Query becomes: has_height_restriction = 0 OR gantry_height_m &gt;= h."],
+  ["gantry_height_raw","TEXT","","Yes","Source","gantry_height","Verbatim. 0.0 on 477 rows, 9.99 on 67","Audit trail. If my interpretation of 0.00 is ever challenged, the original value is still on the row and the transformation can be re-run differently without re-ingesting."],
+  ["latitude","REAL","","Yes","Derived","x_coord + y_coord","1.2715 to 1.4574","WGS84, converted from SVY21 at ingestion. No map SDK on earth can plot SVY21. Converting 2181 times once beats converting on every single request."],
+  ["longitude","REAL","","Yes","Derived","x_coord + y_coord","103.6854 to 103.9885","Same. The range doubles as a sanity check on the conversion - those bounds are Singapore."],
+  ["svy21_x","REAL","","Yes","Source","x_coord","11539.1 to 45264.6 metres","Source projected coordinate, retained so the WGS84 conversion can be audited or re-derived if the formula is ever corrected."],
+  ["svy21_y","REAL","","Yes","Source","y_coord","28123.4 to 48691.4 metres","Same."],
+  ["source_row_hash","TEXT","","Yes","Operational","all 12 columns","SHA-256, 2181 distinct","If the hash matches what is already stored, the row is skipped entirely - no write, no timestamp churn. This is what makes a nightly re-run of an unchanged file nearly free."],
+  ["is_active","INTEGER (bool)","","Yes","Operational","-","1 on all 2181","Soft delete. A carpark that vanishes from the feed is deactivated, not destroyed, because a user may have favourited it. Also enforced by ON DELETE RESTRICT."],
+  ["first_seen_at","TEXT (datetime)","","Yes","Operational","-","2026-07-31T12:01:46Z","When this carpark first entered the system."],
+  ["last_seen_at","TEXT (datetime)","","Yes","Operational","-","2026-07-31T12:01:46Z","The last file that still contained this row. This is the field that drives deactivation on a snapshot load."],
+  ["last_modified_at","TEXT (datetime)","","Yes","Operational","-","2026-07-31T12:01:46Z","The last time a VALUE actually changed, as distinct from merely being seen again. Separating the two is what makes the hash optimisation observable."],
+  ["last_job_run_id","INTEGER","FK","No","Operational","-","1 on all rows","Lineage. Which file, which run, at what time produced this row - answered with one join instead of a log search."]
+ ]],
+ ["car_park_type","Lookup. 7 rows. Exists because one value repeats 1,087 times in the source.",[
+  ["id","INTEGER","PK","Yes","Derived","-","1 to 7","Surrogate key referenced by carpark.car_park_type_id."],
+  ["code","TEXT","UK","Yes","Derived","car_park_type","SURFACE, MULTI_STOREY, BASEMENT, SURFACE_MULTI_STOREY, COVERED, MECHANISED_AND_SURFACE, MECHANISED","A stable machine-safe token. Safe in a URL and in a client switch statement, unlike 'SURFACE/MULTI-STOREY CAR PARK'."],
+  ["name","TEXT","","Yes","Source","car_park_type","Source text verbatim, e.g. MULTI-STOREY CAR PARK","Source fidelity. Normalising must never lose the original wording - this is what gets displayed to a user."],
+  ["is_active","INTEGER (bool)","","Yes","Operational","-","1 on all 7","If HDB publishes an 8th type, ingestion auto-registers it rather than rejecting the file. This flag lets an operator retire one without deleting history."]
+ ]],
+ ["parking_system_type","Lookup. 2 rows. ELECTRONIC 1,998 / COUPON 183.",[
+  ["id","INTEGER","PK","Yes","Derived","-","1 to 2","Surrogate key."],
+  ["code","TEXT","UK","Yes","Derived","type_of_parking_system","ELECTRONIC, COUPON","Machine-safe token."],
+  ["name","TEXT","","Yes","Source","type_of_parking_system","ELECTRONIC PARKING, COUPON PARKING","Source text verbatim."]
+ ]],
+ ["short_term_parking_type","Lookup. 4 rows. Also parses the time text once, at ingest.",[
+  ["id","INTEGER","PK","Yes","Derived","-","1 to 4","Surrogate key."],
+  ["code","TEXT","UK","Yes","Derived","short_term_parking","WHOLE_DAY, T0700_2230, NONE, T0700_1900","Machine-safe token."],
+  ["description","TEXT","","Yes","Source","short_term_parking","WHOLE DAY, 7AM-10.30PM, NO, 7AM-7PM","Source text verbatim."],
+  ["start_time","TIME","","No","Derived","short_term_parking","07:00:00 on both timed rows. NULL for WHOLE DAY and NO","The text 7AM-10.30PM parsed into a real time ONCE, at ingest. A future 'open right now' feature needs no schema change and no string parsing."],
+  ["end_time","TIME","","No","Derived","short_term_parking","22:30:00 and 19:00:00. NULL for WHOLE DAY and NO","Same."],
+  ["is_whole_day","INTEGER (bool)","","Yes","Derived","short_term_parking","1 on WHOLE_DAY only (1758 carparks)","Distinguishes 'open all day, so no times apply' from 'times unknown'. Without it, a NULL start_time is ambiguous."],
+  ["is_available","INTEGER (bool)","","Yes","Derived","short_term_parking","0 on NONE only (119 carparks)","Makes 'does this carpark offer short-term parking at all' a boolean seek instead of a text comparison against 'NO'."]
+ ]],
+ ["free_parking_type","Lookup. 3 rows. Where user story 1 actually lives.",[
+  ["id","INTEGER","PK","Yes","Derived","-","1 to 3","Surrogate key."],
+  ["code","TEXT","UK","Yes","Derived","free_parking","NONE, SUN_PH_0700_2230, SUN_PH_1300_2230","Machine-safe token."],
+  ["description","TEXT","","Yes","Source","free_parking","NO, SUN &amp; PH FR 7AM-10.30PM, SUN &amp; PH FR 1PM-10.30PM","Source text verbatim. <b>This exact string is repeated 1594 times</b> in the CSV - the clearest 3NF violation in the dataset."],
+  ["start_time","TIME","","No","Derived","free_parking","07:00:00 and 13:00:00. NULL for NONE","Parsed once at ingest. Stored now so a future 'free parking right now' story needs no migration."],
+  ["end_time","TIME","","No","Derived","free_parking","22:30:00 on both. NULL for NONE","Same."],
+  ["applies_sun_and_ph","INTEGER (bool)","","Yes","Derived","free_parking","1 on the two schedule rows, 0 on NONE","Records WHICH days the schedule covers - Sundays and public holidays. Separate from the times so the two can vary independently."],
+  ["is_offered","INTEGER (bool)","","Yes","Derived","free_parking","1 on 2 rows covering 1605 carparks, 0 on NONE covering 576","<b>USER STORY 1 lives here.</b> 1594 + 11 = 1605. A single boolean derived from text that has no YES value anywhere in it."]
+ ]],
+ ["app_user","Authentication (R12). 2 test accounts.",[
+  ["id","INTEGER","PK","Yes","Requirement","-","2 rows","Surrogate key. <b>CRITICAL: never accepted as API input.</b> It is read only from the JWT sub claim, which designs out OWASP API1:2023 Broken Object Level Authorisation."],
+  ["email","TEXT","UK","Yes","Requirement","-","2 test addresses","Login identity. Unique index prevents duplicate accounts."],
+  ["password_hash","TEXT","","Yes","Requirement","-","PBKDF2-HMAC-SHA256, 210000 iterations, per-user salt","The plaintext password is never stored anywhere. Iteration count follows current OWASP guidance; the salt is per user so two identical passwords produce different hashes."],
+  ["display_name","TEXT","","Yes","Requirement","-","Free text","Human-readable name for the UI, kept separate from email so a user can change one without the other."],
+  ["role","TEXT","","Yes","Requirement","-","User or Admin","Admin gates the manual ingestion trigger and the defect report endpoints. Stored on the user, carried in the JWT."],
+  ["failed_login_count","INTEGER","","Yes","Requirement","-","0","Brute-force defence. Rate limiting protects the ENDPOINT; this protects an individual ACCOUNT from a slow distributed attack that stays under the rate limit."],
+  ["lockout_ends_at","TEXT (datetime)","","No","Requirement","-","NULL","When the lockout expires. NULL means not locked out - which is why <b>no is_locked_out column is stored</b>. It would be derivable data that can drift out of sync with the timestamp it comes from."],
+  ["created_at","TEXT (datetime)","","Yes","Operational","-","Registration timestamp","Audit."]
+ ]],
+ ["user_favourite","Junction table (R13). The many-to-many between users and carparks.",[
+  ["user_id","INTEGER","PK + FK","Yes","Requirement","-","1 row exists","Half of the composite primary key. ON DELETE CASCADE - deleting a user removes their favourites."],
+  ["carpark_id","INTEGER","PK + FK","Yes","Requirement","-","1 row exists","The other half. ON DELETE RESTRICT - a favourited carpark cannot be hard-deleted, which is precisely why ingestion soft-deactivates instead. <b>The COMPOSITE PK makes a duplicate favourite structurally impossible</b> even by direct SQL, so the idempotent PUT is a schema guarantee rather than a code convention."],
+  ["created_at","TEXT (datetime)","","Yes","Requirement","-","Timestamp","Powers 'most recently favourited first' ordering without a second sort key."]
+ ]],
+ ["refresh_token","Session renewal. The rotation chain that makes theft detectable.",[
+  ["id","INTEGER","PK","Yes","Requirement","-","2 rows","Surrogate key, and the target of replaced_by_id."],
+  ["user_id","INTEGER","FK","Yes","Requirement","-","-","Owner. One user can hold several - one per device."],
+  ["token_hash","TEXT","UK","Yes","Requirement","-","SHA-256","<b>The raw token is NEVER stored.</b> A leaked database yields zero usable sessions. Unique so a replay is detectable."],
+  ["expires_at","TEXT (datetime)","","Yes","Requirement","-","7 days after issue","Bounds the lifetime. The ACCESS token lasts 15 minutes; this is what lets it stay that short without the user re-typing a password hourly."],
+  ["revoked_at","TEXT (datetime)","","No","Requirement","-","NULL when live","Set on logout, and set on every token in the chain when reuse is detected."],
+  ["replaced_by_id","INTEGER","FK (self)","No","Requirement","-","NULL on the newest token","<b>THE ROTATION CHAIN.</b> Tokens are single-use. If an ALREADY-REPLACED token is presented, a copy must exist, so the entire chain is revoked - attacker and legitimate user both logged out. A forced re-login beats an attacker holding a live session for a week."],
+  ["created_by_ip","TEXT","","No","Operational","-","Client IP","Forensics after a reuse-detection event."]
+ ]],
+ ["job_run","Ingestion audit (R8). One row per execution. 1 run so far.",[
+  ["id","INTEGER","PK","Yes","Operational","-","1 run","One row per execution of the batch job."],
+  ["job_name","TEXT","","Yes","Operational","-","carpark-ingestion","Which job. Deliberately generic so a second job type needs no new table."],
+  ["file_name","TEXT","","Yes","Operational","-","hdb-carpark-information-20220824010400.csv","Which file was processed."],
+  ["file_hash","TEXT","","Yes","Operational","-","SHA-256 of the file bytes","<b>IDEMPOTENCY KEY.</b> Re-running the same file is a no-op, not a duplicate load. The unique index applies ONLY where status = Succeeded, so a failed run can still be retried."],
+  ["status","TEXT","","Yes","Operational","-","Succeeded","Pending, Running, Succeeded, Failed, RolledBack, Skipped. Drives the readiness probe - a stale or failed feed degrades health."],
+  ["file_mode","TEXT","","Yes","Operational","-","Delta","Delta or Snapshot. <b>ONLY a snapshot may deactivate rows missing from the file.</b> This one column prevents a truncated delta from wiping the catalogue."],
+  ["started_at","TEXT (datetime)","","Yes","Operational","-","2026-07-31T12:01:46Z","Start time."],
+  ["completed_at","TEXT (datetime)","","No","Operational","-","Set on finish","NULL while running. Duration is completed_at minus started_at."],
+  ["lease_expires_at","TEXT (datetime)","","Yes","Operational","-","Heartbeated while running","<b>CRASH DETECTION.</b> An expired lease on a row still marked Running means the process died. The next startup reclaims it automatically instead of a human noticing the next morning."],
+  ["host_name","TEXT","","Yes","Operational","-","Machine name","Which machine ran it. Matters the moment there are two."],
+  ["records_read","INTEGER","","Yes","Operational","-","2181","Lines read from the file."],
+  ["records_inserted","INTEGER","","Yes","Operational","-","2181","New carparks created."],
+  ["records_updated","INTEGER","","Yes","Operational","-","0","Existing carparks whose values changed."],
+  ["records_unchanged","INTEGER","","Yes","Operational","-","0 on a first load","<b>THE SCALING PROPERTY.</b> On a real nightly delta, most rows match their source_row_hash and are never written at all. This number is the proof the optimisation works."],
+  ["records_deactivated","INTEGER","","Yes","Operational","-","0","Carparks soft-deleted because they were absent from a snapshot."],
+  ["records_rejected","INTEGER","","Yes","Operational","-","0","Rows that failed validation with severity Error. Zero here, with 3 rows in job_run_error, confirms all 3 were Warnings."],
+  ["attempt_number","INTEGER","","Yes","Operational","-","1","Retry counter. Distinguishes a first failure from a persistent one."],
+  ["error_summary","TEXT","","No","Operational","-","NULL on success","The one-line answer to 'what went wrong', without opening a log file."]
+ ]],
+ ["job_run_error","Per-record defects (R6). 3 rows, all Warnings.",[
+  ["id","INTEGER","PK","Yes","Operational","-","3 rows","One row per defective record. Validation collects ALL errors rather than aborting on the first, which is why this is one-to-many."],
+  ["job_run_id","INTEGER","FK","Yes","Operational","-","1","Which run found it."],
+  ["line_number","INTEGER","","Yes","Operational","-","288, 1144, 1405","<b>The EXACT line in the source file.</b> This is what lets a data supplier fix their file without a conversation."],
+  ["car_park_no","TEXT","","No","Operational","-","BM4, PL65, SE5L","Which record, when identifiable. NULL if the line was too malformed to parse a key from."],
+  ["field_name","TEXT","","No","Operational","-","CarParkDecks","Which column was wrong."],
+  ["error_code","TEXT","","Yes","Operational","-","INCONSISTENT_DECK_COUNT","A stable machine-readable code, so defects can be counted and alerted on by type rather than by matching message text."],
+  ["severity","TEXT","","Yes","Operational","-","Warning on all 3","Error rejects the row; Warning accepts it and flags it. All 3 here are Warnings - one MULTI_STOREY and two BASEMENT carparks reporting 0 decks. Suspicious, but <b>the API refuses to invent data.</b>"],
+  ["message","TEXT","","Yes","Operational","-","MULTI_STOREY carpark reports 0 decks. Ingested as supplied.","Human-readable explanation, including what the system decided to do about it."],
+  ["raw_line","TEXT","","No","Operational","-","The offending line verbatim","So the defect can be reproduced and verified without re-reading the source file."]
+ ]],
+ ["carpark_staging","The R7 rollback mechanism. 0 rows right now - and that is the point.",[
+  ["id","INTEGER","PK","Yes","Operational","-","0 rows","Surrogate key."],
+  ["job_run_id","INTEGER","FK","Yes","Operational","-","-","Which run loaded this batch. Lets a crashed run's rows be identified and cleared."],
+  ["line_number","INTEGER","","Yes","Operational","-","-","Carried through so any merge-time failure can still point at the source line."],
+  ["(18 mirror columns)","various","","-","Operational","-","Mirrors every carpark source and derived column","<b>THE R7 MECHANISM.</b> The whole file loads here in batches, then ONE set-based INSERT ... ON CONFLICT DO UPDATE moves it across. That is what makes 'a failure rolls back the entire file' true, without holding a transaction open across 2181 individual inserts. Truncated at the start and end of every run - never a source of truth. <b>The table being EMPTY right now is the proof it cleans up after itself.</b>"]
+ ]]
+];
+
+const out = document.getElementById("out");
+const q = document.getElementById("q");
+let origin = "all";
+
+function render(){
+  const term = q.value.trim().toLowerCase();
+  let html = "", total = 0;
+
+  for (const [table, lead, rows] of GROUPS){
+    const keep = rows.filter(r => {
+      if (origin !== "all" && r[4] !== origin) return false;
+      if (!term) return true;
+      return (table + " " + r.join(" ")).toLowerCase().includes(term);
+    });
+    if (!keep.length) continue;
+    total += keep.length;
+
+    html += `<h2><code>${table}</code><span class="cnt">${keep.length} of ${rows.length} fields</span></h2>`;
+    html += `<p class="lead">${lead}</p><div class="wrap"><table><thead><tr>`;
+    html += `<th>Column</th><th>Type</th><th>Key</th><th>Req</th><th>Origin</th><th>Source CSV</th><th>Values here</th><th>Why this field exists</th>`;
+    html += `</tr></thead><tbody>`;
+    for (const r of keep){
+      html += `<tr>
+        <td class="col">${r[0]}</td>
+        <td class="ty">${r[1]}</td>
+        <td class="key">${r[2] || "&middot;"}</td>
+        <td class="ty">${r[3] === "Yes" ? "Yes" : '<span class="star">' + r[3] + "</span>"}</td>
+        <td><span class="badge b-${r[4].toLowerCase()}">${r[4]}</span></td>
+        <td class="ty">${r[5]}</td>
+        <td class="vals">${r[6]}</td>
+        <td class="why">${r[7]}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+
+  out.innerHTML = total ? html : `<p class="none">Nothing matches &ldquo;${q.value}&rdquo;.</p>`;
+}
+
+q.addEventListener("input", render);
+document.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === b));
+  origin = b.dataset.o;
+  render();
+}));
+render();
+</script>
+</body>
+</html>

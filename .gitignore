@@ -18,6 +18,13 @@
 !/docs/performance.md
 !docs/performance.md
 
+# A generated snapshot of the database, ~700 KB of data embedded in one page.
+# Not committed: carpark.db itself is ignored, so this would be a stale copy of
+# something a reviewer regenerates in thirty seconds by running the batch job.
+# The hand-written docs/data-dictionary.html IS committed — it explains the
+# schema and never goes stale.
+/docs/data-browser.html
+
 # ─────────────────────────────────────────────────────────────────────────────
 # .NET
 # ─────────────────────────────────────────────────────────────────────────────
