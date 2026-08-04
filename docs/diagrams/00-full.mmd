@@ -75,9 +75,8 @@ erDiagram
         string   password_hash              "PBKDF2-HMAC-SHA256, 210k iters, per-user salt"
         string   display_name
         string   role                       "User | Admin"
-        bool     is_locked_out
         int      failed_login_count
-        datetime lockout_ends_at
+        datetime lockout_ends_at         "NULL = not locked out; the flag is derived, never stored"
         datetime created_at
     }
 

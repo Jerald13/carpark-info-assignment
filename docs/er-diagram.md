@@ -10,7 +10,7 @@
 
 ## How to read this
 
-A ten-table diagram is not meant to be absorbed in one go. Reviewers typically spend under a minute
+An eleven-table diagram is not meant to be absorbed in one go. Reviewers typically spend under a minute
 on one, doing three things: find the table everything points at, follow the arrows outward in
 groups, then spot-check a few columns to see whether the data was thought about.
 
@@ -168,9 +168,8 @@ erDiagram
         string   password_hash              "PBKDF2-HMAC-SHA256, 210k iters, per-user salt"
         string   display_name
         string   role                       "User | Admin"
-        bool     is_locked_out
         int      failed_login_count
-        datetime lockout_ends_at
+        datetime lockout_ends_at         "NULL = not locked out; the flag is derived, never stored"
         datetime created_at
     }
 
@@ -263,8 +262,9 @@ is what makes the composite covering index small enough to stay resident.
 access pattern is substring search. Any parser would be lossy and permanently wrong on some subset.
 Over-normalisation that destroys source fidelity is a defect, not a virtue.
 
-`gantry_height_m` stays a measure on `carpark` rather than becoming a lookup — 34 distinct values,
-genuinely continuous, and it is the range predicate in the hottest query in the system.
+`gantry_height_m` stays a measure on `carpark` rather than becoming a lookup — 32 distinct measured
+values from 1.7 m to 5.4 m (34 in the source, before the two sentinels become `NULL`), genuinely
+continuous, and it is the range predicate in the hottest query in the system.
 
 ### 3. `gantry_height` — the critical transformation
 
