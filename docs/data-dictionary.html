@@ -81,16 +81,14 @@
 <header>
   <h1>Carpark API &mdash; Data Dictionary</h1>
   <div class="sub">
-    11 tables, 93 fields. Every value measured from
+    <span id="tot"></span>. Fields are listed in the same order as
+    <code>data-browser.html</code> &mdash; the physical schema order &mdash; so the two read
+    side by side. Every value measured from
     <code>src/CarparkInfo.Api/carpark.db</code> (2,181 carparks).
   </div>
   <div class="controls">
     <input type="search" id="q" placeholder="Search any column, field name or reason…  (Ctrl+F also works)">
-    <button class="chip" data-o="all" aria-pressed="true">All 93</button>
-    <button class="chip" data-o="Source" aria-pressed="false">Source 21</button>
-    <button class="chip" data-o="Derived" aria-pressed="false">Derived 20</button>
-    <button class="chip" data-o="Requirement" aria-pressed="false">Requirement 18</button>
-    <button class="chip" data-o="Operational" aria-pressed="false">Operational 34</button>
+    <span id="chips" style="display:contents"></span>
   </div>
 </header>
 
@@ -115,19 +113,19 @@ const GROUPS = [
   ["has_night_parking","INTEGER (bool)","","Yes","Source","night_parking","1 on 1795 rows, 0 on 386","<b>USER STORY 2.</b> Source is the text YES/NO. Stored as a real boolean so the filter is an index seek rather than a string comparison."],
   ["deck_count","INTEGER","","Yes","Source","car_park_decks","0 to 21. Zero on 1093 rows. Most common non-zero: 12 (252), 10 (195)","Number of parking levels. Zero is legitimate for the 1087 surface carparks, which is why a zero deck count is recorded as a WARNING and ingested, never rejected."],
   ["has_basement","INTEGER (bool)","","Yes","Source","car_park_basement","1 on 38 rows, 0 on 2143","Source text Y/N. The 38 matches the BASEMENT CAR PARK type count exactly - a free consistency check between two independent source columns."],
-  ["gantry_height_m","decimal","","NO (nullable)","Derived","gantry_height","NULL on 544 rows. 32 distinct, 1.7 to 5.4, avg 2.87. Most common 2.15 (807), 4.5 (437)","<b>THE most important column in the schema.</b> NULL means NO GANTRY EXISTS. Nullable on purpose: it makes the naive comparison return nothing rather than silently return a wrong answer."],
-  ["has_height_restriction","INTEGER (bool)","","Yes","Derived","gantry_height","0 on 544 rows (477 with source 0.00 + 67 with 9.99), 1 on 1637","<b>USER STORY 3.</b> Source 0.00 appears on 477 rows and ALL 477 are SURFACE CAR PARK - it means no gantry, not zero clearance. 9.99 is the source system unlimited sentinel. Query becomes: has_height_restriction = 0 OR gantry_height_m &gt;= h."],
-  ["gantry_height_raw","TEXT","","Yes","Source","gantry_height","Verbatim. 0.0 on 477 rows, 9.99 on 67","Audit trail. If my interpretation of 0.00 is ever challenged, the original value is still on the row and the transformation can be re-run differently without re-ingesting."],
-  ["latitude","REAL","","Yes","Derived","x_coord + y_coord","1.2715 to 1.4574","WGS84, converted from SVY21 at ingestion. No map SDK on earth can plot SVY21. Converting 2181 times once beats converting on every single request."],
-  ["longitude","REAL","","Yes","Derived","x_coord + y_coord","103.6854 to 103.9885","Same. The range doubles as a sanity check on the conversion - those bounds are Singapore."],
-  ["svy21_x","REAL","","Yes","Source","x_coord","11539.1 to 45264.6 metres","Source projected coordinate, retained so the WGS84 conversion can be audited or re-derived if the formula is ever corrected."],
-  ["svy21_y","REAL","","Yes","Source","y_coord","28123.4 to 48691.4 metres","Same."],
   ["source_row_hash","TEXT","","Yes","Operational","all 12 columns","SHA-256, 2181 distinct","If the hash matches what is already stored, the row is skipped entirely - no write, no timestamp churn. This is what makes a nightly re-run of an unchanged file nearly free."],
   ["is_active","INTEGER (bool)","","Yes","Operational","-","1 on all 2181","Soft delete. A carpark that vanishes from the feed is deactivated, not destroyed, because a user may have favourited it. Also enforced by ON DELETE RESTRICT."],
   ["first_seen_at","TEXT (datetime)","","Yes","Operational","-","2026-07-31T12:01:46Z","When this carpark first entered the system."],
   ["last_seen_at","TEXT (datetime)","","Yes","Operational","-","2026-07-31T12:01:46Z","The last file that still contained this row. This is the field that drives deactivation on a snapshot load."],
   ["last_modified_at","TEXT (datetime)","","Yes","Operational","-","2026-07-31T12:01:46Z","The last time a VALUE actually changed, as distinct from merely being seen again. Separating the two is what makes the hash optimisation observable."],
-  ["last_job_run_id","INTEGER","FK","No","Operational","-","1 on all rows","Lineage. Which file, which run, at what time produced this row - answered with one join instead of a log search."]
+  ["last_job_run_id","INTEGER","FK","No","Operational","-","1 on all rows","Lineage. Which file, which run, at what time produced this row - answered with one join instead of a log search."],
+  ["has_height_restriction","INTEGER (bool)","","Yes","Derived","gantry_height","0 on 544 rows (477 with source 0.00 + 67 with 9.99), 1 on 1637","<b>USER STORY 3.</b> Source 0.00 appears on 477 rows and ALL 477 are SURFACE CAR PARK - it means no gantry, not zero clearance. 9.99 is the source system unlimited sentinel. Query becomes: has_height_restriction = 0 OR gantry_height_m &gt;= h."],
+  ["gantry_height_m","decimal","","NO (nullable)","Derived","gantry_height","NULL on 544 rows. 32 distinct, 1.7 to 5.4, avg 2.87. Most common 2.15 (807), 4.5 (437)","<b>THE most important column in the schema.</b> NULL means NO GANTRY EXISTS. Nullable on purpose: it makes the naive comparison return nothing rather than silently return a wrong answer."],
+  ["gantry_height_raw","TEXT","","Yes","Source","gantry_height","Verbatim. 0.0 on 477 rows, 9.99 on 67","Audit trail. If my interpretation of 0.00 is ever challenged, the original value is still on the row and the transformation can be re-run differently without re-ingesting."],
+  ["latitude","REAL","","Yes","Derived","x_coord + y_coord","1.2715 to 1.4574","WGS84, converted from SVY21 at ingestion. No map SDK on earth can plot SVY21. Converting 2181 times once beats converting on every single request."],
+  ["longitude","REAL","","Yes","Derived","x_coord + y_coord","103.6854 to 103.9885","Same. The range doubles as a sanity check on the conversion - those bounds are Singapore."],
+  ["svy21_x","REAL","","Yes","Source","x_coord","11539.1 to 45264.6 metres","Source projected coordinate, retained so the WGS84 conversion can be audited or re-derived if the formula is ever corrected."],
+  ["svy21_y","REAL","","Yes","Source","y_coord","28123.4 to 48691.4 metres","Same."]
  ]],
  ["car_park_type","Lookup. 7 rows. Exists because one value repeats 1,087 times in the source.",[
   ["id","INTEGER","PK","Yes","Derived","-","1 to 7","Surrogate key referenced by carpark.car_park_type_id."],
@@ -216,14 +214,43 @@ const GROUPS = [
  ["carpark_staging","The R7 rollback mechanism. 0 rows right now - and that is the point.",[
   ["id","INTEGER","PK","Yes","Operational","-","0 rows","Surrogate key."],
   ["job_run_id","INTEGER","FK","Yes","Operational","-","-","Which run loaded this batch. Lets a crashed run's rows be identified and cleared."],
-  ["line_number","INTEGER","","Yes","Operational","-","-","Carried through so any merge-time failure can still point at the source line."],
-  ["(18 mirror columns)","various","","-","Operational","-","Mirrors every carpark source and derived column","<b>THE R7 MECHANISM.</b> The whole file loads here in batches, then ONE set-based INSERT ... ON CONFLICT DO UPDATE moves it across. That is what makes 'a failure rolls back the entire file' true, without holding a transaction open across 2181 individual inserts. Truncated at the start and end of every run - never a source of truth. <b>The table being EMPTY right now is the proof it cleans up after itself.</b>"]
+  ["car_park_no","TEXT","","Yes","Source","car_park_no","-","Staging copy. This is the conflict target of the atomic merge: INSERT ... ON CONFLICT (car_park_no) DO UPDATE."],
+  ["address","TEXT","","Yes","Source","address","-","Staging copy of carpark.address."],
+  ["svy21_x","REAL","","Yes","Source","x_coord","-","Staging copy of carpark.svy21_x."],
+  ["svy21_y","REAL","","Yes","Source","y_coord","-","Staging copy of carpark.svy21_y."],
+  ["latitude","REAL","","Yes","Derived","x_coord + y_coord","-","Staging copy. The SVY21 conversion happens BEFORE the merge, so the swap stays a pure set-based move with no computation in it."],
+  ["longitude","REAL","","Yes","Derived","x_coord + y_coord","-","Staging copy of carpark.longitude."],
+  ["car_park_type_id","INTEGER","","Yes","Source","car_park_type","-","Staging copy. Lookups are resolved during load, not during the merge."],
+  ["parking_system_type_id","INTEGER","","Yes","Source","type_of_parking_system","-","Staging copy of carpark.parking_system_type_id."],
+  ["short_term_parking_type_id","INTEGER","","Yes","Source","short_term_parking","-","Staging copy of carpark.short_term_parking_type_id."],
+  ["free_parking_type_id","INTEGER","","Yes","Source","free_parking","-","Staging copy of carpark.free_parking_type_id."],
+  ["has_night_parking","INTEGER (bool)","","Yes","Source","night_parking","-","Staging copy of carpark.has_night_parking."],
+  ["deck_count","INTEGER","","Yes","Source","car_park_decks","-","Staging copy of carpark.deck_count."],
+  ["gantry_height_m","decimal","","No","Derived","gantry_height","-","Staging copy. The 0.00 and 9.99 sentinels are already NULL by the time a row reaches this table - the transformation happens on the way in, so the merge never has to know about it."],
+  ["has_height_restriction","INTEGER (bool)","","Yes","Derived","gantry_height","-","Staging copy of carpark.has_height_restriction."],
+  ["gantry_height_raw","TEXT","","Yes","Source","gantry_height","-","Staging copy of carpark.gantry_height_raw."],
+  ["has_basement","INTEGER (bool)","","Yes","Source","car_park_basement","-","Staging copy of carpark.has_basement."],
+  ["source_row_hash","TEXT","","Yes","Operational","all 12 columns","-","Staging copy. Comparing this against the live row is what lets the merge skip rows that have not changed."],
+  ["line_number","INTEGER","","Yes","Operational","-","-","Carried through so any merge-time failure can still point at the source line."]
  ]]
 ];
 
 const out = document.getElementById("out");
 const q = document.getElementById("q");
 let origin = "all";
+
+// Counts are computed, never typed. A hand-written total is a number that goes stale
+// the moment a field is added, and a wrong count in a graded document is worse than none.
+const ALL = GROUPS.flatMap(([t,,rows]) => rows);
+const ORIGINS = ["Source","Derived","Requirement","Operational"];
+const tally = o => ALL.filter(r => r[4] === o).length;
+
+document.getElementById("tot").textContent =
+  `${GROUPS.length} tables, ${ALL.length} fields`;
+
+document.getElementById("chips").innerHTML =
+  `<button class="chip" data-o="all" aria-pressed="true">All ${ALL.length}</button>`
+  + ORIGINS.map(o => `<button class="chip" data-o="${o}" aria-pressed="false">${o} ${tally(o)}</button>`).join("");
 
 function render(){
   const term = q.value.trim().toLowerCase();
