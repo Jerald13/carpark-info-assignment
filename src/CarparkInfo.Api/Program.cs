@@ -1,5 +1,6 @@
 using CarparkInfo.Api;
 using CarparkInfo.Infrastructure;
+using CarparkInfo.Infrastructure.Auth;
 using Microsoft.AspNetCore.Mvc;
 
 // Composition root for the Carpark Information API.
@@ -14,7 +15,18 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+// Enums serialise as their NAME, not their ordinal.
+//
+// By default System.Text.Json emits `"status": 3`, which tells a client nothing, cannot be
+// validated, and silently changes meaning the day somebody inserts a member into the enum. It was
+// also inconsistent: the trigger endpoint already returned Status.ToString(), so the same concept
+// was a string in one response and a number in another.
+//
+// Names also make the OpenAPI document self-describing - the allowed values appear in Swagger
+// instead of an unexplained integer.
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(
+        new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApiSecurity(builder.Configuration);
 builder.AddApiObservability();
@@ -38,6 +50,11 @@ var app = builder.Build();
 
 // Migrations run at startup so a reviewer can clone and run with no database setup step.
 await InfrastructureSetup.MigrateAsync(app.Services).ConfigureAwait(false);
+
+// The administrator account, in Development only. Three admin endpoints existed with nothing in
+// the solution granting the role, so a reviewer could reach none of them. Fails closed: any
+// environment other than Development seeds nothing. See DevelopmentSeeder.
+await DevelopmentSeeder.SeedAdminAsync(app.Services, app.Environment.EnvironmentName).ConfigureAwait(false);
 
 // --- pipeline ---------------------------------------------------------------------------------
 

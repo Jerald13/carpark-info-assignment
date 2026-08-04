@@ -146,6 +146,37 @@ curl -X PUT -H "Authorization: Bearer $TOKEN" \
     "http://localhost:5106/api/v1/favourites/ACB"
 ```
 
+### The administrator account
+
+Three endpoints need the `Admin` role — ingestion history, the defect report, and the manual
+trigger. Registration always creates a `User`, so **Development seeds an administrator at startup**:
+
+| | |
+|---|---|
+| **Email** | `admin@carpark.local` |
+| **Password** | `Admin!ChangeMe123` |
+
+Sign in with `POST /api/v1/auth/login` exactly as above, then **Authorize** with that token. You can
+now call:
+
+```bash
+ADMIN=$(curl -s -X POST http://localhost:5106/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@carpark.local","password":"Admin!ChangeMe123"}' | jq -r .accessToken)
+
+# What the last ingestion run did
+curl -s -H "Authorization: Bearer $ADMIN" http://localhost:5106/api/v1/admin/job-runs | jq
+
+# The defect report — three warnings, each with the exact source line number
+curl -s -H "Authorization: Bearer $ADMIN" http://localhost:5106/api/v1/admin/job-runs/1/defects | jq
+```
+
+> **This account exists in Development only.** The seed is guarded by an ordinal comparison against
+> the environment name and fails closed — configuration can switch it *off* inside Development, but
+> can never switch it *on* anywhere else, and `DevelopmentSeederTests` asserts both directions.
+> Publishing the password here is safe precisely because the account cannot exist in Production.
+> To disable it locally, set `Seed:Admin:Enabled` to `false`.
+
 ---
 
 ## The one thing worth reading

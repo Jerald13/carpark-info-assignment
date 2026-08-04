@@ -195,8 +195,31 @@ API did not become ready. Its output was:" -ForegroundColor Red
         (Invoke-RestMethod "$baseUrl/api/v1/favourites" -Headers $auth).data.Count } "1"
     Assert-That "admin endpoints reject a normal user" { Get-Status '/api/v1/admin/job-runs' 'GET' $auth } "403"
 
-    # -- 9. Health ---------------------------------------------------------------------------
-    Write-Step "9. Health"
+    # -- 9. The administrator path ------------------------------------------------------------
+    # Every admin check above asserts a REJECTION. That is exactly how three documented admin
+    # endpoints shipped unreachable: nothing in the solution ever granted UserRoles.Admin, and no
+    # test or check ever asked whether an administrator could actually get in.
+    Write-Step "9. The seeded administrator can actually use the admin endpoints"
+    Write-Host "     Proving the door is locked is not the same as proving the key exists." -ForegroundColor DarkGray
+
+    $adminTokens = Invoke-RestMethod "$baseUrl/api/v1/auth/login" -Method Post -ContentType 'application/json' `
+        -Body (@{ email = 'admin@carpark.local'; password = 'Admin!ChangeMe123' } | ConvertTo-Json)
+
+    $adminAuth = @{ Authorization = "Bearer $($adminTokens.accessToken)" }
+
+    Assert-That "the README's admin credentials work" { [bool]$adminTokens.accessToken } "True"
+    Assert-That "GET /admin/job-runs as admin" { Get-Status '/api/v1/admin/job-runs' 'GET' $adminAuth } "200"
+
+    $runs = Invoke-RestMethod "$baseUrl/api/v1/admin/job-runs" -Headers $adminAuth
+    Assert-That "the ingestion run is reported" { $runs[0].status } "Succeeded"
+    Assert-That "enums serialise as names, not ordinals" { $runs[0].status -is [string] } "True"
+
+    $defects = Invoke-RestMethod "$baseUrl/api/v1/admin/job-runs/$($runs[0].id)/defects" -Headers $adminAuth
+    Assert-That "the R6 defect report is reachable" { @($defects).Count } "3"
+    Assert-That "all three are warnings, not errors" { (@($defects) | Where-Object { $_.severity -ne 'Warning' }).Count } "0"
+
+    # -- 10. Health --------------------------------------------------------------------------
+    Write-Step "10. Health"
     Assert-That "liveness" { (Get-Json '/api/v1/health/live').status } "Healthy"
     Assert-That "readiness reports a fresh feed" { (Get-Json '/api/v1/health/ready').feed.isFresh } "True"
 }
