@@ -44,7 +44,15 @@ builder.Services.AddProblemDetails(options =>
 // (ADR-012). ASP.NET Core dropped Swashbuckle from its templates in .NET 9; the built-in
 // generator is source-generated, reads XML doc comments natively in .NET 10, and cannot lag
 // the framework. Swashbuckle is still used - but only for its UI.
-builder.Services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
+builder.Services.AddOpenApi(options =>
+{
+    // Two transformers, and BOTH are required. The first DEFINES the bearer scheme, which draws the
+    // Authorize button. The second says which operations REQUIRE it, which is what makes Swagger
+    // actually send the header. With only the first, the button works, the token is accepted, and
+    // every request still goes out anonymous.
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+    options.AddOperationTransformer<BearerSecurityRequirementTransformer>();
+});
 
 var app = builder.Build();
 

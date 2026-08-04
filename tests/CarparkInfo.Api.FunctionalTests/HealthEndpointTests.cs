@@ -47,7 +47,10 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
 
         var document = await response.Content.ReadAsStringAsync(Ct);
         document.Should().Contain("openapi", "the response must be an OpenAPI document");
-        document.Should().Contain("/api/v1/Health/live",
-            "declared endpoints must appear in the generated contract");
+        document.Should().Contain("/api/v1/health/live",
+            "declared endpoints must appear in the generated contract, and in the SAME casing the "
+            + "README documents. [Route(\"api/v1/[controller]\")] expanded to the class name and "
+            + "published '/api/v1/Health/live' - case-insensitive routing hid it, but the contract "
+            + "and the documentation disagreed");
     }
 }

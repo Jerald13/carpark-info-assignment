@@ -8,7 +8,12 @@ namespace CarparkInfo.Api.Controllers;
 
 /// <summary>Liveness and readiness probes.</summary>
 [ApiController]
-[Route("api/v1/[controller]")]
+// Literal, not [controller]: the token expands to the class name, which produced "/api/v1/Health"
+// with a capital H while every other route is lower case. Routing is case-insensitive so it worked,
+// but the OpenAPI document, the Swagger page and the curl it generates all showed the odd one out,
+// and the README documented the lower-case form. Documentation that disagrees with the contract is
+// the defect, however harmless the redirect.
+[Route("api/v1/health")]
 [AllowAnonymous]
 [Produces("application/json")]
 public sealed class HealthController : ControllerBase

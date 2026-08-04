@@ -103,6 +103,82 @@ public sealed class OpenApiContractTests : IClassFixture<CarparkApiFactory>
         scheme.GetProperty("scheme").GetString().Should().Be("bearer");
     }
 
+    /// <summary>
+    /// The partner assertion to <see cref="The_document_declares_the_bearer_security_scheme"/>.
+    /// </summary>
+    /// <remarks>
+    /// That test passed while every protected endpoint was uncallable from Swagger UI. Declaring
+    /// <c>Bearer</c> in <c>components.securitySchemes</c> only DEFINES the scheme - it draws the
+    /// Authorize button. Swagger attaches the header to an operation only if that OPERATION carries
+    /// a <c>security</c> requirement, and none of them did. The button worked, the token was
+    /// accepted, the padlocks looked right, and every request went out with no Authorization header.
+    /// Both admin endpoints and favourites answered 401 to a correctly signed admin token.
+    ///
+    /// Neither the functional tests nor smoke.ps1 could see it: both set the header themselves, so
+    /// both bypassed the mechanism that was broken. Only a browser exercises it.
+    /// </remarks>
+    [Fact]
+    public async Task Protected_operations_declare_the_security_requirement()
+    {
+        var document = await GetDocumentAsync();
+
+        string[] mustBeProtected =
+        [
+            "/api/v1/favourites",
+            "/api/v1/favourites/{carParkNo}",
+            "/api/v1/admin/job-runs",
+        ];
+
+        var unprotected = new List<string>();
+
+        foreach (var path in mustBeProtected)
+        {
+            foreach (var operation in document.GetProperty("paths").GetProperty(path).EnumerateObject())
+            {
+                if (!operation.Value.TryGetProperty("security", out var security)
+                    || security.GetArrayLength() == 0)
+                {
+                    unprotected.Add($"{operation.Name.ToUpperInvariant()} {path}");
+                    continue;
+                }
+
+                security[0].TryGetProperty("Bearer", out _).Should().BeTrue(
+                    "the requirement must reference the scheme declared in components");
+            }
+        }
+
+        unprotected.Should().BeEmpty(
+            "an operation with no security requirement gets NO Authorization header from Swagger "
+            + "UI, however correct the token is, so it answers 401 and the reviewer cannot tell "
+            + "why. Offenders: {0}", string.Join(", ", unprotected));
+    }
+
+    [Fact]
+    public async Task Anonymous_operations_do_not_demand_a_token()
+    {
+        var document = await GetDocumentAsync();
+
+        string[] mustStayOpen =
+        [
+            "/api/v1/carparks",
+            "/api/v1/auth/login",
+            "/api/v1/auth/register",
+            "/api/v1/health/live",
+        ];
+
+        foreach (var path in mustStayOpen)
+        {
+            foreach (var operation in document.GetProperty("paths").GetProperty(path).EnumerateObject())
+            {
+                operation.Value.TryGetProperty("security", out var security).Should().BeFalse(
+                    $"{path} is anonymous. Marking it as protected is a documentation lie in the "
+                    + "other direction - it sends a reviewer hunting for a token they do not need");
+
+                _ = security;
+            }
+        }
+    }
+
     [Fact]
     public async Task The_document_is_OpenAPI_3_1()
     {

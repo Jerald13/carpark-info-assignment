@@ -157,6 +157,17 @@ API did not become ready. Its output was:" -ForegroundColor Red
     Assert-That "no array-typed query parameters" { $arrayParams.Count } "0"
     Assert-That "Authorize button is declared" { [bool]$doc.components.securitySchemes.Bearer } "True"
 
+    # Declaring the scheme only draws the button. Swagger sends the Authorization header for an
+    # OPERATION only when that operation carries a security requirement. Without it the button
+    # works, the token is accepted, and every protected endpoint still answers 401 - which is
+    # exactly what shipped, because both this script and the functional tests set the header
+    # themselves and never exercised the browser's path.
+    Assert-That "protected operations require the scheme" {
+        (@('/api/v1/favourites', '/api/v1/admin/job-runs') | ForEach-Object {
+            [bool]$doc.paths.$_.get.security }) -notcontains $false } "True"
+    Assert-That "anonymous operations do not" {
+        [bool]$doc.paths.'/api/v1/carparks'.get.PSObject.Properties['security'] } "False"
+
     # -- 6. The user stories -----------------------------------------------------------------
     Write-Step "6. The three user stories return the documented counts"
     Assert-That "whole catalogue" { (Get-Json '/api/v1/carparks?includeTotal=true&pageSize=1').pagination.totalCount } "2181"
