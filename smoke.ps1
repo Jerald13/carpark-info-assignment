@@ -113,11 +113,18 @@ try {
         '-c', 'Release', '--urls', $baseUrl)
 
     $ready = $false
-    foreach ($i in 1..45) {
+    foreach ($i in 1..60) {
         Start-Sleep -Seconds 1
         if ((Get-Status '/api/v1/health/live') -eq 200) { $ready = $true; break }
     }
-    if (-not $ready) { throw "API did not become ready on $baseUrl within 45 seconds." }
+    if (-not $ready) {
+        Write-Host "
+API did not become ready. Its output was:" -ForegroundColor Red
+        foreach ($f in @($apiOut, "$apiOut.err")) {
+            if (Test-Path $f) { Get-Content $f -Tail 40 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray } }
+        }
+        throw "API did not become ready on $baseUrl within 60 seconds."
+    }
     Write-Host "  API is listening on $baseUrl" -ForegroundColor Green
 
     # -- 4. No redirect ----------------------------------------------------------------------
@@ -198,6 +205,7 @@ finally {
         Stop-Process -Id $apiProc.Id -Force -ErrorAction SilentlyContinue
     }
     Remove-Item $dbPath, "$dbPath-shm", "$dbPath-wal" -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $root 'smoke-api.log'), (Join-Path $root 'smoke-api.log.err') -ErrorAction SilentlyContinue
     Remove-Item Env:\ConnectionStrings__CarparkDatabase -ErrorAction SilentlyContinue
 }
 

@@ -3,7 +3,7 @@
 A backend for searching Singapore HDB carparks and saving favourites, built for the
 [take-home assignment](docs/ASSIGNMENT.md).
 
-**.NET 10 LTS · SQLite · EF Core 10 · 215 tests · OpenAPI 3.1**
+**.NET 10 LTS · SQLite · EF Core 10 · 232 tests · OpenAPI 3.1**
 
 ---
 
@@ -210,7 +210,7 @@ Two more findings in the same vein:
 | Filter: night parking | `has_night_parking` |
 | Filter: vehicle height | `HeightRestriction` |
 | Add a favourite | Idempotent `PUT` |
-| Supports unit testing | Ports and adapters, DI throughout |
+| Supports unit testing | Ports and adapters, DI throughout — 232 tests |
 | **Swap data-access tech** | `ICarparkRepository`, enforced by `ArchitectureTests` |
 | **Swap CSV → JSON** | `IRecordSource` — the JSON reader ships |
 | Large dataset | [docs/performance.md](docs/performance.md) |
@@ -272,7 +272,7 @@ pwsh ./smoke.ps1          # starts the API and walks this README end to end
 1. restore                      PASS
 2. format                       PASS
 3. build (Release)              PASS
-4. test                         PASS      215 tests
+4. test                         PASS      232 tests
 5. vulnerable packages          PASS
 ```
 
