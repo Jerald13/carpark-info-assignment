@@ -122,16 +122,22 @@ public sealed class AdminController : ControllerBase
     /// <summary>
     /// Triggers ingestion of whatever is waiting in the inbox.
     /// </summary>
-    /// <param name="request">Optional overrides for this run.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="request">Optional overrides. Send `{}` to accept every default.</param>
     /// <returns>What each file's run did.</returns>
     /// <remarks>
-    /// The third of three trigger adapters, alongside the scheduled worker and the CLI. All three
-    /// call the same `IngestionRunner`, so none of them contains ingestion logic and the paths
-    /// cannot drift apart.
+    /// Processes every file waiting in the intake inbox, one at a time, and moves each one out
+    /// afterwards — to the processed directory on success, or to quarantine once it has run out of
+    /// attempts. **An empty inbox returns an empty list, not an error.**
     ///
-    /// Safe to call repeatedly: a file whose SHA-256 has already succeeded returns `Skipped`
-    /// without starting a run. Pass `force: true` to reprocess deliberately.
+    /// **Safe to call twice.** Each file is identified by the SHA-256 of its contents, so one that
+    /// has already been ingested successfully comes back as `Skipped` and nothing runs. Send
+    /// `force: true` to reprocess it anyway — useful when the file has not changed but you want it
+    /// read again.
+    ///
+    /// `mode` decides what a carpark's ABSENCE from the file means. `Delta` (the default) treats it
+    /// as unchanged. `Snapshot` treats it as gone and deactivates it — which is why a snapshot run
+    /// aborts rather than deactivating more than 5% of the catalogue in one go.
     /// </remarks>
     /// <response code="200">Every discovered file's outcome.</response>
     /// <response code="401">No valid bearer token.</response>

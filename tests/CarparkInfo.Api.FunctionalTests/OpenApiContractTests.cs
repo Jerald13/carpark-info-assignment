@@ -179,6 +179,51 @@ public sealed class OpenApiContractTests : IClassFixture<CarparkApiFactory>
         }
     }
 
+    /// <summary>
+    /// Every request body describes the body, not the cancellation token.
+    /// </summary>
+    /// <remarks>
+    /// The generator assigns <c>requestBody.description</c> from the <b>last</b> <c>&lt;param&gt;</c>
+    /// tag on the action. <c>CancellationToken</c> is conventionally the final parameter, so the
+    /// conventional documentation order published <i>"Cancels the request."</i> as the description
+    /// of <b>every</b> request body in the API - all five of them, including the sign-in payload.
+    /// The fix is to document <c>cancellationToken</c> first; this test exists because that ordering
+    /// looks like an accident and would otherwise be tidied back within a week.
+    /// </remarks>
+    [Fact]
+    public async Task No_request_body_is_described_as_the_cancellation_token()
+    {
+        var document = await GetDocumentAsync();
+
+        var offenders = new List<string>();
+        var bodies = 0;
+
+        foreach (var path in document.GetProperty("paths").EnumerateObject())
+        {
+            foreach (var operation in path.Value.EnumerateObject())
+            {
+                if (!operation.Value.TryGetProperty("requestBody", out var body)
+                    || !body.TryGetProperty("description", out var description))
+                {
+                    continue;
+                }
+
+                bodies++;
+
+                if (description.GetString()?.Contains("Cancels the request", StringComparison.Ordinal) == true)
+                {
+                    offenders.Add(path.Name);
+                }
+            }
+        }
+
+        bodies.Should().BeGreaterThan(0, "the API has endpoints that take a body");
+        offenders.Should().BeEmpty(
+            "the description belongs to the payload, not to the CancellationToken parameter. "
+            + "Document cancellationToken BEFORE the body parameter - the generator uses the last "
+            + "<param> tag. Offenders: {0}", string.Join(", ", offenders));
+    }
+
     [Fact]
     public async Task The_document_is_OpenAPI_3_1()
     {

@@ -18,11 +18,15 @@ public sealed class AuthController : ControllerBase
     /// <param name="auth">Authentication service.</param>
     public AuthController(AuthenticationService auth) => _auth = auth;
 
+    // cancellationToken is documented FIRST here and on every action that takes a body. The OpenAPI
+    // generator assigns requestBody.description from the LAST <param> tag, so the conventional
+    // order published "Cancels the request." as the description of every request body in the API.
+    // Asserted by OpenApiContractTests so it cannot be quietly tidied back.
     /// <summary>
     /// Registers an account.
     /// </summary>
-    /// <param name="request">Email, password and display name.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="request">Email, password and display name.</param>
     /// <returns>A generic acknowledgement.</returns>
     /// <remarks>
     /// Always returns the same message and takes the same time whether or not the address is
@@ -50,8 +54,8 @@ public sealed class AuthController : ControllerBase
     /// <summary>
     /// Signs in and issues tokens.
     /// </summary>
-    /// <param name="request">Email and password.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="request">Email and password.</param>
     /// <returns>An access token and a refresh token.</returns>
     /// <remarks>
     /// Hold the access token in memory and the refresh token in secure storage — Keychain,
@@ -83,8 +87,8 @@ public sealed class AuthController : ControllerBase
     /// <summary>
     /// Exchanges a refresh token for a new pair.
     /// </summary>
-    /// <param name="request">The refresh token.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="request">The refresh token.</param>
     /// <returns>A new access token and a new refresh token.</returns>
     /// <remarks>
     /// Refresh tokens are **single-use**. Each exchange returns a new one and revokes the old.
@@ -114,8 +118,8 @@ public sealed class AuthController : ControllerBase
     }
 
     /// <summary>Revokes a refresh token.</summary>
-    /// <param name="request">The refresh token to revoke.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="request">The refresh token to revoke.</param>
     /// <returns>No content.</returns>
     /// <remarks>
     /// Returns `204` whether or not the token existed: reporting "no such token" would let a
