@@ -119,12 +119,17 @@ Favourites need a bearer token. Three steps, all doable in Swagger without any c
 - Paste the token **only**. Do not type `Bearer ` in front — Swagger adds it.
 - Use `accessToken`, not `refreshToken`. The refresh token is a short random string for renewal
   and will not authenticate a request.
-- It expires after **15 minutes**. A bearer token cannot be revoked once issued, so a short life
-  bounds the damage if one leaks; `POST /api/v1/auth/refresh` gets a fresh pair without
-  re-entering the password.
-- **Tokens do not survive an API restart.** When no signing key is configured the app generates a
-  random one at startup — deliberately, because a hard-coded fallback that silently works in
-  production is how signing keys end up committed.
+- **In Development it lasts 30 days**, so you are never logged out halfway through reading the
+  code. The **default is 15 minutes** — a bearer token cannot be revoked once issued, so a short
+  life is what bounds the damage if one leaks, and `POST /api/v1/auth/refresh` exchanges the
+  refresh token for a fresh pair. `AuthOptionsTests` asserts that default, so the dev convenience
+  cannot quietly become the shipped behaviour.
+- **Tokens survive an API restart in Development**, because `appsettings.Development.json` sets a
+  fixed signing key. That key is public and worthless — it is in this repository and only ever
+  loads on localhost. Anywhere else the key comes from user-secrets or the environment, and
+  **startup refuses to run** if it is missing or under 256 bits.
+- **A `401` tells you which mistake you made** — no token, expired, or a token this server did not
+  sign. Read the `detail` field rather than guessing.
 
 Then try `PUT /api/v1/favourites/ACB`. It returns **`201`** the first time and **`200`** if you
 repeat it — never `409`, because favouriting twice is favouriting once.

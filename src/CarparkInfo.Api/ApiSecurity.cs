@@ -4,6 +4,7 @@ using CarparkInfo.Application.Auth;
 using CarparkInfo.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 
@@ -72,6 +73,58 @@ public static class ApiSecurity
                     // a third of its intended 15-minute span. Zero is the only defensible value
                     // when the whole point of a short lifetime is bounding a stolen token.
                     ClockSkew = TimeSpan.Zero,
+                };
+
+                // Say WHY the request was rejected.
+                //
+                // By default a 401 carries the reason in the WWW-Authenticate header, where no
+                // browser shows it, so Swagger renders an identical bare "Unauthorized" whether the
+                // caller sent no token, an expired one, or pasted the refresh token by mistake.
+                // Three different mistakes, one dead end, and no way to tell them apart. The
+                // information exists - it is simply thrown away before it reaches anyone.
+                //
+                // Nothing sensitive is disclosed: the caller already holds the token, and "it
+                // expired" is not a secret. What is NOT distinguished is anything about an account,
+                // which is why sign-in failures stay deliberately identical.
+                jwt.Events = new JwtBearerEvents
+                {
+                    OnChallenge = context =>
+                    {
+                        context.HandleResponse();
+
+                        var (detail, title) = context.AuthenticateFailure switch
+                        {
+                            SecurityTokenExpiredException =>
+                                ("The access token has expired. Sign in again, or exchange the "
+                                 + "refresh token at POST /api/v1/auth/refresh.", "Token expired"),
+
+                            SecurityTokenInvalidSignatureException =>
+                                ("The token's signature is not valid for this server. It was most "
+                                 + "likely issued by a different instance.", "Invalid token"),
+
+                            not null =>
+                                ("The bearer token could not be validated. Paste the accessToken "
+                                 + "value only - Swagger adds the 'Bearer ' prefix itself - and "
+                                 + "make sure it is the accessToken, not the refreshToken.",
+                                 "Invalid token"),
+
+                            _ =>
+                                ("No bearer token was supplied. Sign in at POST /api/v1/auth/login, "
+                                 + "then use the Authorize button above.", "Unauthorized"),
+                        };
+
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/problem+json";
+
+                        return context.Response.WriteAsJsonAsync(new ProblemDetails
+                        {
+                            Type = "https://tools.ietf.org/html/rfc9110#section-15.5.2",
+                            Title = title,
+                            Status = StatusCodes.Status401Unauthorized,
+                            Detail = detail,
+                            Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier },
+                        });
+                    },
                 };
             });
 

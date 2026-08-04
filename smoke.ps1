@@ -68,6 +68,19 @@ function Get-Json($path) {
     Invoke-RestMethod -Uri "$baseUrl$path" -TimeoutSec 20
 }
 
+# Reads the ProblemDetails body off a non-2xx. Invoke-WebRequest on Windows PowerShell 5.1 throws
+# before handing back the body, so it has to come off the exception's response stream.
+function Get-Problem($path, $headers = @{}) {
+    $request = [Net.HttpWebRequest]::Create("$baseUrl$path")
+    foreach ($key in $headers.Keys) { $request.Headers.Add($key, $headers[$key]) }
+
+    try { $request.GetResponse().Close(); return $null }
+    catch [Net.WebException] {
+        $reader = New-Object IO.StreamReader($_.Exception.Response.GetResponseStream())
+        return $reader.ReadToEnd() | ConvertFrom-Json
+    }
+}
+
 function Get-Status($path, $method = 'GET', $headers = @{}) {
     try {
         $r = Invoke-WebRequest -Uri "$baseUrl$path" -Method $method -Headers $headers `
@@ -205,6 +218,14 @@ API did not become ready. Its output was:" -ForegroundColor Red
     Assert-That "the favourite is listed" {
         (Invoke-RestMethod "$baseUrl/api/v1/favourites" -Headers $auth).data.Count } "1"
     Assert-That "admin endpoints reject a normal user" { Get-Status '/api/v1/admin/job-runs' 'GET' $auth } "403"
+
+    # A 401 that says only "Unauthorized" is three different mistakes wearing the same face: no
+    # token, an expired one, or the refresh token pasted by accident. The server knows which; it
+    # used to put the reason in WWW-Authenticate where no browser shows it.
+    Assert-That "a 401 says WHY - no token" {
+        (Get-Problem '/api/v1/admin/job-runs').detail -like 'No bearer token*' } "True"
+    Assert-That "a 401 says WHY - bad token" {
+        (Get-Problem '/api/v1/admin/job-runs' @{ Authorization = 'Bearer not.a.token' }).title } "Invalid token"
 
     # -- 9. The administrator path ------------------------------------------------------------
     # Every admin check above asserts a REJECTION. That is exactly how three documented admin

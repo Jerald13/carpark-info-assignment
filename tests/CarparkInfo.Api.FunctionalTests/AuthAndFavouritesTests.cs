@@ -32,9 +32,14 @@ public sealed class AuthAndFavouritesTests : IClassFixture<CarparkApiFactory>
         tokens.GetProperty("accessToken").GetString().Should().NotBeNullOrEmpty();
         tokens.GetProperty("refreshToken").GetString().Should().NotBeNullOrEmpty();
         tokens.GetProperty("tokenType").GetString().Should().Be("Bearer");
-        tokens.GetProperty("expiresInSeconds").GetInt32().Should().Be(900,
-            "a 15-minute access token bounds the damage from one that is stolen, because a bearer "
-            + "token cannot be revoked before it expires");
+        // 30 days, because these run in Development and appsettings.Development.json overrides the
+        // lifetime so a reviewer clicking through Swagger is not logged out mid-session. The
+        // PRODUCTION-facing property - that the default is 15 minutes - is asserted by
+        // AuthOptionsTests, where it belongs: it is a property of the code, not of dev config.
+        tokens.GetProperty("expiresInSeconds").GetInt32().Should().Be(2_592_000,
+            "Development deliberately issues a long-lived token; the 15-minute default is asserted "
+            + "against AuthOptions itself so that dev convenience can never quietly become the "
+            + "shipped behaviour");
     }
 
     [Fact]
