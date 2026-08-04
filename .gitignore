@@ -18,6 +18,11 @@
 !/docs/performance.md
 !docs/performance.md
 
+# Exported explainers and walkthroughs. Rendered from HTML for reading and presenting, so the
+# source is always a text file that diffs; a committed PDF is a binary blob that goes stale silently
+# and shows up as an unreviewable change in every diff that touches it.
+*.pdf
+
 # A generated snapshot of the database, ~700 KB of data embedded in one page.
 # Not committed: carpark.db itself is ignored, so this would be a stale copy of
 # something a reviewer regenerates in thirty seconds by running the batch job.
