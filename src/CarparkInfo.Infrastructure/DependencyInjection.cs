@@ -18,8 +18,56 @@ namespace CarparkInfo.Infrastructure;
 /// </remarks>
 public static class DependencyInjection
 {
-    /// <summary>Default database file, used when configuration supplies no connection string.</summary>
-    public const string DefaultConnectionString = "Data Source=carpark.db";
+    /// <summary>
+    /// Default database file, used when configuration supplies no connection string.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This was <c>"Data Source=carpark.db"</c>, and that single relative path broke the
+    /// reviewer's entire journey.</b> SQLite resolves a relative path against the process working
+    /// directory, and <c>dotnet run --project X</c> sets that to X's own project folder. So the two
+    /// commands in the README wrote to, and read from, two different files:
+    /// </para>
+    /// <code>
+    /// src/CarparkInfo.BatchJob/carpark.db   1344 KB   2,181 carparks   &lt;- the batch job filled this
+    /// src/CarparkInfo.Api/carpark.db           4 KB           0        &lt;- the API served this
+    /// </code>
+    /// <para>
+    /// Clone, run the two documented commands, and the API answers every search with an empty list.
+    /// Nothing caught it: the functional tests point at their own temporary file, and smoke.ps1 sets
+    /// <c>ConnectionStrings__CarparkDatabase</c> to one absolute path for both processes - so the
+    /// script that exists to prove a reviewer can clone and run was configuring the very thing the
+    /// README never tells them to configure.
+    /// </para>
+    /// <para>
+    /// The default now resolves to a single file at the repository root, found by walking up from
+    /// the running assembly to the solution file, so both hosts agree regardless of working
+    /// directory. Configuration still wins: any real deployment supplies a connection string and
+    /// never reaches this.
+    /// </para>
+    /// </remarks>
+    public static string DefaultConnectionString => $"Data Source={DefaultDatabasePath()}";
+
+    /// <summary>Locates the shared database file both hosts must agree on.</summary>
+    /// <returns>An absolute path at the repository root, or a bare file name if it cannot be found.</returns>
+    private static string DefaultDatabasePath()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (directory is not null)
+        {
+            if (directory.EnumerateFiles("*.sln").Any() || directory.EnumerateFiles("*.slnx").Any())
+            {
+                return Path.Combine(directory.FullName, "carpark.db");
+            }
+
+            directory = directory.Parent;
+        }
+
+        // Published output has no solution file. Every real deployment configures a connection
+        // string, so this fallback only ever applies to a stray local run.
+        return "carpark.db";
+    }
 
     /// <summary>Configuration key for the database connection string.</summary>
     public const string ConnectionStringName = "CarparkDatabase";

@@ -91,6 +91,54 @@ public sealed class HostCompositionTests
             .Should().NotBeNull();
     }
 
+    /// <summary>
+    /// The batch job and the API must default to the same database file.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The default was <c>"Data Source=carpark.db"</c>. SQLite resolves a relative path against the
+    /// process working directory, and <c>dotnet run --project X</c> sets that to X's own folder, so
+    /// the two commands the README gives a reviewer used two different databases:
+    /// </para>
+    /// <code>
+    /// src/CarparkInfo.BatchJob/carpark.db   1344 KB   2,181 carparks
+    /// src/CarparkInfo.Api/carpark.db           4 KB           0
+    /// </code>
+    /// <para>
+    /// Clone the repository, run both documented commands, and every search returns an empty list.
+    /// It survived 255 tests because every test supplies its own connection string - including
+    /// smoke.ps1, whose entire purpose is to prove a reviewer can clone and run, and which set
+    /// <c>ConnectionStrings__CarparkDatabase</c> for both processes. The harness was configuring the
+    /// one thing the README never mentions, so the defect was invisible from inside it.
+    /// </para>
+    /// <para>
+    /// An absolute path is the property that matters. A relative one is correct only by coincidence
+    /// of where the process happened to start.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void The_default_database_path_is_absolute_and_shared_by_every_host()
+    {
+        const string prefix = "Data Source=";
+
+        var connectionString = DependencyInjection.DefaultConnectionString;
+        connectionString.Should().StartWith(prefix);
+
+        var file = connectionString[prefix.Length..];
+
+        Path.IsPathFullyQualified(file).Should().BeTrue(
+            "a relative path resolves against each process's working directory, so the batch job "
+            + "and the API would write to and read from different files. This is the defect that "
+            + "made a freshly cloned repository serve an empty catalogue");
+
+        Path.GetFileName(file).Should().Be("carpark.db");
+
+        var directory = new DirectoryInfo(Path.GetDirectoryName(file)!);
+        directory.EnumerateFiles("*.sln").Any().Should().BeTrue(
+            "the shared database belongs at the repository root, which is the one directory both "
+            + "hosts can agree on without either of them knowing where the other was launched from");
+    }
+
     private static IConfiguration Configuration() =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
