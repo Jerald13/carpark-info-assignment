@@ -60,10 +60,10 @@ public sealed class CarparksController : ControllerBase
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (request.Validate(ModelState) is { } problem)
-        {
-            return problem;
-        }
+        // No validation call here on purpose. CarparkSearchRequest implements IValidatableObject,
+        // so model binding runs its rules and [ApiController] returns a ValidationProblemDetails
+        // 400 before this method is ever entered. Validation that has to be invoked by hand is
+        // validation a future endpoint will forget.
 
         var result = await _carparks
             .SearchAsync(request.ToFilter(), request.ToPageRequest(), CurrentUserId, cancellationToken)

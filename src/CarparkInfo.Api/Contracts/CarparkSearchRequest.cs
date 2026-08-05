@@ -1,29 +1,41 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using CarparkInfo.Application.Carparks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace CarparkInfo.Api.Contracts;
 
-/// <summary>Query parameters for carpark search.</summary>
-public sealed class CarparkSearchRequest
+/// <summary>
+/// Query parameters for carpark search. Every filter is optional.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>No <c>&lt;example&gt;</c> tags on the filters, deliberately.</b> Swagger UI does not render an
+/// example as a hint - it pre-fills the input box with it. Every filter carrying one meant the page
+/// opened with free parking AND night parking AND a 2 m vehicle AND multi-storey AND electronic AND
+/// an address containing BISHAN AND a 1.5 km radius all applied at once, so a reviewer's first
+/// Execute on the assignment's main endpoint returned nothing. The API was correct; the
+/// documentation made it look broken and the filters look mandatory.
+/// </para>
+/// <para>
+/// Examples now live in the description text instead, where they read as guidance rather than
+/// becoming input. <see cref="PageSize"/> keeps its default because 20 genuinely is the default.
+/// </para>
+/// </remarks>
+public sealed class CarparkSearchRequest : IValidatableObject
 {
-    /// <summary>Only carparks that offer free parking at some point.</summary>
-    /// <example>true</example>
+    /// <summary>Only carparks that offer free parking at some point. Omit for all carparks.</summary>
     [DefaultValue(null)]
     public bool? FreeParking { get; init; }
 
-    /// <summary>Only carparks that offer night parking.</summary>
-    /// <example>true</example>
+    /// <summary>Only carparks that offer night parking. Omit for all carparks.</summary>
     [DefaultValue(null)]
     public bool? NightParking { get; init; }
 
     /// <summary>
-    /// Vehicle height in metres. Returns carparks that fit it, <b>including those with no height
-    /// restriction at all</b>.
+    /// Vehicle height in metres, e.g. <c>2.0</c>. Returns carparks that fit it, <b>including those
+    /// with no height restriction at all</b>. Between 0.1 and 10.
     /// </summary>
-    /// <example>2.0</example>
     [DefaultValue(null)]
     public decimal? VehicleHeight { get; init; }
 
@@ -31,7 +43,6 @@ public sealed class CarparkSearchRequest
     /// Restrict to these carpark types. Comma-separate for several, e.g.
     /// <c>MULTI_STOREY,BASEMENT</c>. Codes come from <c>GET /api/v1/carparks/lookups</c>.
     /// </summary>
-    /// <example>MULTI_STOREY</example>
     /// <remarks>
     /// A comma-separated string rather than a repeated array parameter, deliberately. Swagger UI
     /// runs JSON.parse over any parameter typed as an array, so a plain value in the box throws
@@ -45,27 +56,23 @@ public sealed class CarparkSearchRequest
     /// Restrict to these parking systems. Comma-separate for several, e.g.
     /// <c>ELECTRONIC,COUPON</c>.
     /// </summary>
-    /// <example>ELECTRONIC</example>
     public string? ParkingSystem { get; init; }
 
-    /// <summary>Case-insensitive substring match on the address.</summary>
-    /// <example>BISHAN</example>
+    /// <summary>Case-insensitive substring match on the address, e.g. <c>BISHAN</c>.</summary>
     public string? Address { get; init; }
 
-    /// <summary>Centre latitude for a radius search.</summary>
-    /// <example>1.3009</example>
+    /// <summary>Centre latitude for a radius search, e.g. <c>1.3009</c>.</summary>
     public double? Lat { get; init; }
 
-    /// <summary>Centre longitude for a radius search.</summary>
-    /// <example>103.8546</example>
+    /// <summary>Centre longitude for a radius search, e.g. <c>103.8546</c>.</summary>
     public double? Lon { get; init; }
 
-    /// <summary>Radius in kilometres. Requires <c>lat</c> and <c>lon</c>.</summary>
-    /// <example>1.5</example>
+    /// <summary>
+    /// Radius in kilometres, e.g. <c>1.5</c>. Requires <c>lat</c> and <c>lon</c>.
+    /// </summary>
     public double? RadiusKm { get; init; }
 
     /// <summary>Sort order: <c>carParkNo</c> (default) or <c>distance</c>.</summary>
-    /// <example>distance</example>
     public string? Sort { get; init; }
 
     /// <summary>Opaque cursor from the previous page's <c>nextCursor</c>.</summary>
@@ -87,55 +94,72 @@ public sealed class CarparkSearchRequest
     public const double MaximumRadiusKilometres = 50.0;
 
     /// <summary>Validates the request.</summary>
-    /// <param name="modelState">Model state to populate with any errors.</param>
-    /// <returns>A problem result when invalid, otherwise null.</returns>
-    public ActionResult? Validate(ModelStateDictionary modelState)
+    /// <param name="validationContext">The validation context. Unused.</param>
+    /// <returns>One result per broken rule. Empty when the request is valid.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>This used to take a <c>ModelStateDictionary</c> and return an <c>ActionResult</c>,</b> so
+    /// every controller began with <c>if (request.Validate(ModelState) is { } problem) return
+    /// problem;</c>. That put MVC result construction inside a request contract: the DTO knew what an
+    /// HTTP 400 looked like, which is not its job, and every new endpoint had to remember the same
+    /// two lines or silently skip validation entirely.
+    /// </para>
+    /// <para>
+    /// <see cref="IValidatableObject"/> is the framework's own hook. Model binding calls it, and
+    /// <c>[ApiController]</c> turns a failed ModelState into an RFC 7807
+    /// <c>ValidationProblemDetails</c> automatically. Same status code, same body, same messages -
+    /// but the contract no longer references MVC, and validation cannot be forgotten because nobody
+    /// has to remember to call it.
+    /// </para>
+    /// <para>
+    /// The rules stay here rather than becoming <c>[Range]</c> attributes because four of the seven
+    /// are relationships BETWEEN fields - a radius needs all three of lat, lon and radius; sorting by
+    /// distance needs a centre. An attribute can only see one property, so splitting them across two
+    /// mechanisms would scatter the rules for no gain.
+    /// </para>
+    /// </remarks>
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        ArgumentNullException.ThrowIfNull(modelState);
-
         if (VehicleHeight is { } height && height is <= 0 or > 10)
         {
-            modelState.AddModelError(nameof(VehicleHeight),
-                "Vehicle height must be between 0.1 and 10.0 metres.");
+            yield return new ValidationResult(
+                "Vehicle height must be between 0.1 and 10.0 metres.", [nameof(VehicleHeight)]);
         }
 
         if (PageSize is < 1 or > PageRequest.MaximumPageSize)
         {
-            modelState.AddModelError(nameof(PageSize),
-                $"Page size must be between 1 and {PageRequest.MaximumPageSize}.");
+            yield return new ValidationResult(
+                $"Page size must be between 1 and {PageRequest.MaximumPageSize}.", [nameof(PageSize)]);
         }
 
         var geoParts = new[] { Lat.HasValue, Lon.HasValue, RadiusKm.HasValue };
         if (geoParts.Any(p => p) && !geoParts.All(p => p))
         {
-            modelState.AddModelError(nameof(RadiusKm),
-                "A radius search needs all three of lat, lon and radiusKm.");
+            yield return new ValidationResult(
+                "A radius search needs all three of lat, lon and radiusKm.", [nameof(RadiusKm)]);
         }
 
         if (RadiusKm is { } radius && radius is <= 0 or > MaximumRadiusKilometres)
         {
-            modelState.AddModelError(nameof(RadiusKm),
-                $"Radius must be between 0 and {MaximumRadiusKilometres} kilometres.");
+            yield return new ValidationResult(
+                $"Radius must be between 0 and {MaximumRadiusKilometres} kilometres.", [nameof(RadiusKm)]);
         }
 
         if (Lat is { } latitude && latitude is < -90 or > 90)
         {
-            modelState.AddModelError(nameof(Lat), "Latitude must be between -90 and 90.");
+            yield return new ValidationResult("Latitude must be between -90 and 90.", [nameof(Lat)]);
         }
 
         if (Lon is { } longitude && longitude is < -180 or > 180)
         {
-            modelState.AddModelError(nameof(Lon), "Longitude must be between -180 and 180.");
+            yield return new ValidationResult("Longitude must be between -180 and 180.", [nameof(Lon)]);
         }
 
         if (string.Equals(Sort, "distance", StringComparison.OrdinalIgnoreCase)
             && !(Lat.HasValue && Lon.HasValue))
         {
-            modelState.AddModelError(nameof(Sort),
-                "Sorting by distance requires lat and lon.");
+            yield return new ValidationResult("Sorting by distance requires lat and lon.", [nameof(Sort)]);
         }
-
-        return modelState.IsValid ? null : new BadRequestObjectResult(new ValidationProblemDetails(modelState));
     }
 
     /// <summary>Converts to the domain filter.</summary>

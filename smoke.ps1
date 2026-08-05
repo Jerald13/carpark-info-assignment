@@ -181,8 +181,17 @@ API did not become ready. Its output was:" -ForegroundColor Red
     Assert-That "anonymous operations do not" {
         [bool]$doc.paths.'/api/v1/carparks'.get.PSObject.Properties['security'] } "False"
 
+    # Swagger UI does not render an <example> as a hint - it PRE-FILLS the input box with it. Every
+    # filter carrying one meant the page opened with seven filters already applied, so a reviewer's
+    # first Execute on the assignment's main endpoint returned nothing and read as a broken search.
+    Assert-That "no search filter is pre-filled" {
+        @($doc.paths.'/api/v1/carparks'.get.parameters |
+            Where-Object { $_.name -ne 'PageSize' -and $_.schema.PSObject.Properties['example'] }).Count } "0"
+
     # -- 6. The user stories -----------------------------------------------------------------
     Write-Step "6. The three user stories return the documented counts"
+    # The very first thing a reviewer does: expand the endpoint and press Execute with nothing set.
+    Assert-That "a bare request returns the catalogue" { (Get-Json '/api/v1/carparks').data.Count } "20"
     Assert-That "whole catalogue" { (Get-Json '/api/v1/carparks?includeTotal=true&pageSize=1').pagination.totalCount } "2181"
     Assert-That "free parking (R10)" { (Get-Json '/api/v1/carparks?freeParking=true&includeTotal=true&pageSize=1').pagination.totalCount } "1605"
     Assert-That "night parking (R11)" { (Get-Json '/api/v1/carparks?nightParking=true&includeTotal=true&pageSize=1').pagination.totalCount } "1795"
