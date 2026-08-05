@@ -186,16 +186,27 @@ public sealed class CarparkRepository : ICarparkRepository
     /// </remarks>
     private static IQueryable<Carpark> ApplyFilters(IQueryable<Carpark> query, CarparkFilter filter)
     {
+        // Both of these are TRI-STATE, and the distinction is load-bearing:
+        //
+        //     null   do not filter at all          2,181 carparks
+        //     true   only those that offer it
+        //     false  only those that do NOT
+        //
+        // These previously read `== true`, which silently collapsed false into null: a caller
+        // asking for ?nightParking=false got the whole catalogue back, including the 1,795
+        // carparks that DO offer night parking. The API accepted a parameter and ignored it,
+        // which is worse than rejecting it - the response looks like an answer.
+
         // User story 1. The lookup's IsOffered flag, not a boolean column - the source has no YES.
-        if (filter.FreeParkingOnly == true)
+        if (filter.FreeParkingOnly is { } freeParking)
         {
-            query = query.Where(c => c.FreeParkingType!.IsOffered);
+            query = query.Where(c => c.FreeParkingType!.IsOffered == freeParking);
         }
 
         // User story 2.
-        if (filter.NightParkingOnly == true)
+        if (filter.NightParkingOnly is { } nightParking)
         {
-            query = query.Where(c => c.HasNightParking);
+            query = query.Where(c => c.HasNightParking == nightParking);
         }
 
         // User story 3. THE predicate this entire solution is organised around: a carpark with no

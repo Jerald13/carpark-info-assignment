@@ -197,6 +197,15 @@ API did not become ready. Its output was:" -ForegroundColor Red
     Assert-That "night parking (R11)" { (Get-Json '/api/v1/carparks?nightParking=true&includeTotal=true&pageSize=1').pagination.totalCount } "1795"
     Assert-That "fits a 2.0 m vehicle (R12)" { (Get-Json '/api/v1/carparks?vehicleHeight=2.0&includeTotal=true&pageSize=1').pagination.totalCount } "2056"
     Assert-That "all three combined" { (Get-Json '/api/v1/carparks?freeParking=true&nightParking=true&vehicleHeight=2.0&includeTotal=true&pageSize=1').pagination.totalCount } "1348"
+
+    # The boolean filters are tri-state and only true was ever exercised. `== true` in the
+    # repository collapsed false into null, so ?nightParking=false returned all 2,181 carparks -
+    # including the 1,795 that DO have night parking. A parameter accepted and silently ignored.
+    Assert-That "freeParking=false excludes free parking" { (Get-Json '/api/v1/carparks?freeParking=false&includeTotal=true&pageSize=1').pagination.totalCount } "576"
+    Assert-That "nightParking=false excludes night parking" { (Get-Json '/api/v1/carparks?nightParking=false&includeTotal=true&pageSize=1').pagination.totalCount } "386"
+    Assert-That "true and false partition the catalogue" {
+        (Get-Json '/api/v1/carparks?nightParking=true&includeTotal=true&pageSize=1').pagination.totalCount +
+        (Get-Json '/api/v1/carparks?nightParking=false&includeTotal=true&pageSize=1').pagination.totalCount } "2181"
     Assert-That "comma-separated carParkType" { (Get-Json '/api/v1/carparks?carParkType=MULTI_STOREY,BASEMENT&includeTotal=true&pageSize=1').pagination.totalCount } "1071"
 
     # -- 7. Response shape -------------------------------------------------------------------

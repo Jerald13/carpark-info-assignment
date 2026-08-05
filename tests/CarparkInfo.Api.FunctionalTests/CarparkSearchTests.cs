@@ -45,6 +45,66 @@ public sealed class CarparkSearchTests : IClassFixture<CarparkApiFactory>
         (await TotalForAsync("nightParking=true")).Should().Be(1795);
     }
 
+    // -------------------------------------------------------------------------------------------
+    // The boolean filters are TRI-STATE, and only two of the three states were ever tested.
+    //
+    // ApplyFilters read `if (filter.NightParkingOnly == true)`, so false collapsed into null and
+    // applied no filter at all: ?nightParking=false returned the whole catalogue, including the
+    // 1,795 carparks that DO offer night parking. Every existing test passed, because every one
+    // of them asked for true or omitted the parameter. Nobody asked for false.
+    //
+    // A parameter the API accepts and silently ignores is worse than one it rejects - the caller
+    // gets 200 and a plausible-looking list, and has no way to know it is the wrong list.
+    // -------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Free_parking_false_returns_only_carparks_WITHOUT_free_parking()
+    {
+        var without = await TotalForAsync("freeParking=false");
+
+        without.Should().Be(576,
+            "false is a real request, not the absence of one: 2,181 total minus the 1,605 that "
+            + "offer free parking");
+
+        (without + await TotalForAsync("freeParking=true")).Should().Be(2181,
+            "true and false must partition the catalogue exactly, with nothing counted twice "
+            + "and nothing missed");
+    }
+
+    [Fact]
+    public async Task Night_parking_false_returns_only_carparks_WITHOUT_night_parking()
+    {
+        var without = await TotalForAsync("nightParking=false");
+
+        without.Should().Be(386, "2,181 total minus the 1,795 that offer night parking");
+
+        (without + await TotalForAsync("nightParking=true")).Should().Be(2181);
+    }
+
+    [Fact]
+    public async Task Omitting_a_boolean_filter_is_not_the_same_as_sending_false()
+    {
+        var omitted = await TotalForAsync("");
+        var sentFalse = await TotalForAsync("nightParking=false");
+
+        omitted.Should().Be(2181, "omitted means 'do not filter'");
+        sentFalse.Should().Be(386, "false means 'only those without'");
+
+        sentFalse.Should().NotBe(omitted,
+            "if these are equal the parameter is being ignored, which is exactly the defect "
+            + "this test exists to catch");
+    }
+
+    [Fact]
+    public async Task The_two_boolean_filters_combine_correctly()
+    {
+        // 1,445 + 226 + 160 + 350 = 2,181. Every carpark falls in exactly one quadrant.
+        (await TotalForAsync("freeParking=true&nightParking=true")).Should().Be(1445);
+        (await TotalForAsync("freeParking=true&nightParking=false")).Should().Be(160);
+        (await TotalForAsync("freeParking=false&nightParking=true")).Should().Be(350);
+        (await TotalForAsync("freeParking=false&nightParking=false")).Should().Be(226);
+    }
+
     /// <summary>User story 3 - the one this whole solution is organised around.</summary>
     [Fact]
     public async Task Vehicle_height_filter_includes_carparks_with_no_gantry()
