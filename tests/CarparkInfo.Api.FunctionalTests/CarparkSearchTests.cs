@@ -248,14 +248,78 @@ public sealed class CarparkSearchTests : IClassFixture<CarparkApiFactory>
         cursor.Should().NotContain("=");
     }
 
+    /// <summary>
+    /// An unreadable cursor is rejected, not quietly treated as no cursor at all.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This test asserted the opposite until it was shown to be wrong in use.</b> It read
+    /// <c>An_unreadable_cursor_starts_from_the_beginning_rather_than_failing</c>, on the reasoning
+    /// that a malformed cursor is client input and the worst outcome should be a repeated page.
+    /// </para>
+    /// <para>
+    /// The premise was right - a malformed cursor must never be a 500 - but the conclusion did not
+    /// follow. Decode swallowed every failure and returned an empty key, which the repository turned
+    /// into <c>car_park_no &gt; ''</c>: every row. So <c>?cursor=100</c> returned page one with a
+    /// 200, indistinguishable from a real page. A client whose cursor was truncated in transit would
+    /// re-read page one for ever, reporting success the whole time, and someone experimenting in
+    /// Swagger has no way to learn that the value they typed meant nothing.
+    /// </para>
+    /// <para>
+    /// 400 is not "failing" in the sense the old test meant. It is the difference between a 500 -
+    /// which leaks and alarms - and an honest answer: the request was malformed, and no page of
+    /// results is the right response to it.
+    /// </para>
+    /// </remarks>
     [Fact]
-    public async Task An_unreadable_cursor_starts_from_the_beginning_rather_than_failing()
+    public async Task An_unreadable_cursor_is_rejected_rather_than_silently_ignored()
     {
         var response = await _client.GetAsync(
             new Uri("/api/v1/carparks?pageSize=3&cursor=not-a-real-cursor", UriKind.Relative), Ct);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK,
-            "a malformed cursor is client input; the worst outcome should be a repeated page");
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "returning page one for a cursor the API never issued is a silent lie: the caller "
+            + "gets a 200 and a plausible page, and no way to know their cursor meant nothing");
+
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        problem.GetProperty("errors").TryGetProperty("Cursor", out _).Should().BeTrue(
+            "the error must name the parameter that was wrong");
+    }
+
+    [Fact]
+    public async Task A_cursor_the_API_issued_is_accepted()
+    {
+        var first = await GetJsonAsync("/api/v1/carparks?pageSize=3");
+        var cursor = first.GetProperty("pagination").GetProperty("nextCursor").GetString()!;
+
+        var second = await _client.GetAsync(
+            new Uri($"/api/v1/carparks?pageSize=3&cursor={Uri.EscapeDataString(cursor)}", UriKind.Relative), Ct);
+
+        second.StatusCode.Should().Be(HttpStatusCode.OK,
+            "rejecting invented cursors must not also reject real ones");
+    }
+
+    [Fact]
+    public async Task An_unrecognised_sort_is_rejected_rather_than_falling_back()
+    {
+        var response = await _client.GetAsync(
+            new Uri("/api/v1/carparks?sort=distence", UriKind.Relative), Ct);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "a typo used to fall through to carParkNo and return an ordinary alphabetical page, so "
+            + "'sort=distence' looked like a working request that simply found nothing near you");
+    }
+
+    [Fact]
+    public async Task Pagination_is_the_first_field_in_the_response()
+    {
+        var raw = await _client.GetStringAsync(
+            new Uri("/api/v1/carparks?pageSize=1", UriKind.Relative), Ct);
+
+        raw.IndexOf("\"pagination\"", StringComparison.Ordinal)
+            .Should().BeLessThan(raw.IndexOf("\"data\"", StringComparison.Ordinal),
+                "whether there is another page is the one field read on every response. Behind "
+                + "twenty full carpark objects it means scrolling to the bottom every time");
     }
 
     [Fact]

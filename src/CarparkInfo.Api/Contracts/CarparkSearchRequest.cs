@@ -93,6 +93,10 @@ public sealed class CarparkSearchRequest : IValidatableObject
     /// <summary>Largest radius a caller may request, to bound query cost.</summary>
     public const double MaximumRadiusKilometres = 50.0;
 
+    /// <summary>The only accepted <see cref="Sort"/> values.</summary>
+    private static readonly HashSet<string> ValidSortOrders =
+        new(StringComparer.OrdinalIgnoreCase) { "carParkNo", "distance" };
+
     /// <summary>Validates the request.</summary>
     /// <param name="validationContext">The validation context. Unused.</param>
     /// <returns>One result per broken rule. Empty when the request is valid.</returns>
@@ -155,10 +159,29 @@ public sealed class CarparkSearchRequest : IValidatableObject
             yield return new ValidationResult("Longitude must be between -180 and 180.", [nameof(Lon)]);
         }
 
+        // An unrecognised sort silently fell back to carParkNo. ?sort=distence returned a 200 and
+        // a perfectly ordinary alphabetical page, so a typo looked like a working request that
+        // simply had nothing near you. Only the two documented values are accepted.
+        if (!string.IsNullOrEmpty(Sort) && !ValidSortOrders.Contains(Sort))
+        {
+            yield return new ValidationResult(
+                $"Sort must be one of: {string.Join(", ", ValidSortOrders)}.", [nameof(Sort)]);
+        }
+
         if (string.Equals(Sort, "distance", StringComparison.OrdinalIgnoreCase)
             && !(Lat.HasValue && Lon.HasValue))
         {
             yield return new ValidationResult("Sorting by distance requires lat and lon.", [nameof(Sort)]);
+        }
+
+        // A cursor that cannot be decoded used to fall back to "start from the beginning", so
+        // ?cursor=100 quietly returned page one with a 200. A client whose cursor was truncated in
+        // transit would page for ever without being told anything was wrong.
+        if (!string.IsNullOrEmpty(Cursor) && !PageCursor.TryDecode(Cursor, out _))
+        {
+            yield return new ValidationResult(
+                "The cursor is not one this API issued. Pass the nextCursor value from the previous "
+                + "page's response, or omit it to start from the first page.", [nameof(Cursor)]);
         }
     }
 
@@ -197,11 +220,57 @@ public sealed class CarparkSearchRequest : IValidatableObject
         IncludeTotal);
 }
 
+/// <summary>Query parameters for listing a user's favourites.</summary>
+/// <remarks>
+/// A contract rather than two loose <c>[FromQuery]</c> arguments, so favourites validates its page
+/// size and its cursor exactly the way search does. Two endpoints paging the same catalogue should
+/// not disagree about what a valid cursor is.
+/// </remarks>
+public sealed class FavouritesListRequest : IValidatableObject
+{
+    /// <summary>Results per page, 1 to 200.</summary>
+    [DefaultValue(20)]
+    public int PageSize { get; init; } = PageRequest.DefaultPageSize;
+
+    /// <summary>Opaque cursor from the previous page's <c>nextCursor</c>.</summary>
+    public string? Cursor { get; init; }
+
+    /// <summary>Validates the request.</summary>
+    /// <param name="validationContext">The validation context. Unused.</param>
+    /// <returns>One result per broken rule.</returns>
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (PageSize is < 1 or > PageRequest.MaximumPageSize)
+        {
+            yield return new ValidationResult(
+                $"Page size must be between 1 and {PageRequest.MaximumPageSize}.", [nameof(PageSize)]);
+        }
+
+        if (!string.IsNullOrEmpty(Cursor) && !PageCursor.TryDecode(Cursor, out _))
+        {
+            yield return new ValidationResult(
+                "The cursor is not one this API issued. Pass the nextCursor value from the previous "
+                + "page's response, or omit it to start from the first page.", [nameof(Cursor)]);
+        }
+    }
+
+    /// <summary>Converts to a page request.</summary>
+    /// <returns>The page request.</returns>
+    public PageRequest ToPageRequest() => new(Cursor, PageSize);
+}
+
 /// <summary>A page of results with its paging metadata.</summary>
 /// <typeparam name="T">The item type.</typeparam>
-/// <param name="Data">The results.</param>
 /// <param name="Pagination">How to fetch the next page.</param>
-public sealed record PagedResponse<T>(IReadOnlyList<T> Data, PaginationDto Pagination);
+/// <param name="Data">The results.</param>
+/// <remarks>
+/// <b>Pagination is declared first so it serialises first.</b> It used to sit after the data, which
+/// meant scrolling past twenty full carpark objects to find out whether there was another page - the
+/// one thing you read on every single response. System.Text.Json emits properties in declaration
+/// order, so the fix is the parameter order. Key order carries no meaning to a parser; it carries a
+/// great deal to a human reading a response in Swagger or a terminal.
+/// </remarks>
+public sealed record PagedResponse<T>(PaginationDto Pagination, IReadOnlyList<T> Data);
 
 /// <summary>Builds paged responses from domain results.</summary>
 public static class PagedResponse
@@ -216,8 +285,8 @@ public static class PagedResponse
         ArgumentNullException.ThrowIfNull(result);
 
         return new PagedResponse<T>(
-            result.Items,
-            new PaginationDto(pageSize, result.NextCursor, result.HasMore, result.TotalCount));
+            new PaginationDto(pageSize, result.NextCursor, result.HasMore, result.TotalCount),
+            result.Items);
     }
 }
 

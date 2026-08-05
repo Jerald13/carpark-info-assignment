@@ -41,29 +41,31 @@ public sealed class FavouritesController : ControllerBase
     /// <summary>
     /// Lists the signed-in user's favourites, most recently added first.
     /// </summary>
-    /// <param name="pageSize">Results per page, 1 to 200.</param>
-    /// <param name="cursor">Opaque cursor from the previous page.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="request">Page size and cursor. Both optional.</param>
     /// <returns>One page of favourited carparks.</returns>
     /// <remarks>
     /// Returns **full carpark objects**, not identifiers, so a Favourites screen renders in a
     /// single round trip instead of one request per item.
     /// </remarks>
     /// <response code="200">The user's favourites.</response>
+    /// <response code="400">The page size or cursor was invalid.</response>
     /// <response code="401">No valid bearer token.</response>
     [HttpGet]
     [ProducesResponseType(typeof(PagedResponse<CarparkSummary>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<PagedResponse<CarparkSummary>>> List(
-        [FromQuery] int pageSize = PageRequest.DefaultPageSize,
-        [FromQuery] string? cursor = null,
+        [FromQuery] FavouritesListRequest request,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var result = await _favourites
-            .ListAsync(UserId, new PageRequest(cursor, pageSize), cancellationToken)
+            .ListAsync(UserId, request.ToPageRequest(), cancellationToken)
             .ConfigureAwait(false);
 
-        return Ok(PagedResponse.From(result, pageSize));
+        return Ok(PagedResponse.From(result, request.PageSize));
     }
 
     /// <summary>

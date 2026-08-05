@@ -206,6 +206,14 @@ API did not become ready. Its output was:" -ForegroundColor Red
     Assert-That "true and false partition the catalogue" {
         (Get-Json '/api/v1/carparks?nightParking=true&includeTotal=true&pageSize=1').pagination.totalCount +
         (Get-Json '/api/v1/carparks?nightParking=false&includeTotal=true&pageSize=1').pagination.totalCount } "2181"
+
+    # A parameter the API accepts and ignores is worse than one it rejects: the caller gets a 200
+    # and a plausible answer with no way to know it is the wrong one. Both of these used to do that.
+    Assert-That "an invented cursor is rejected" { Get-Status '/api/v1/carparks?cursor=100' } "400"
+    Assert-That "an unknown sort is rejected" { Get-Status '/api/v1/carparks?sort=banana' } "400"
+    Assert-That "a real cursor is still accepted" {
+        Get-Status ('/api/v1/carparks?pageSize=5&cursor=' +
+            [uri]::EscapeDataString((Get-Json '/api/v1/carparks?pageSize=5').pagination.nextCursor)) } "200"
     Assert-That "comma-separated carParkType" { (Get-Json '/api/v1/carparks?carParkType=MULTI_STOREY,BASEMENT&includeTotal=true&pageSize=1').pagination.totalCount } "1071"
 
     # -- 7. Response shape -------------------------------------------------------------------

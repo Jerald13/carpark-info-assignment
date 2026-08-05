@@ -55,10 +55,11 @@ public sealed class CarparkRepository : ICarparkRepository
             return new PagedResult<CarparkSummary>(nearest, null, false, total);
         }
 
-        if (!string.IsNullOrEmpty(page.Cursor))
+        // An unreadable cursor is rejected with a 400 at the API boundary before it reaches here,
+        // so TryDecode failing means a non-HTTP caller passed something invented. Skipping the
+        // predicate rather than throwing keeps that harmless.
+        if (PageCursor.TryDecode(page.Cursor, out var after))
         {
-            var after = Cursor.Decode(page.Cursor);
-
             // The two-argument overload is the one EF Core translates (to a plain SQL '>').
             // string.Compare(a, b, StringComparison.Ordinal) is NOT translatable and throws at
             // query time, which surfaced as a 500 on any request carrying a cursor.
@@ -92,7 +93,7 @@ public sealed class CarparkRepository : ICarparkRepository
         }
 
         var nextCursor = hasMore && results.Count > 0
-            ? Cursor.Encode(rows[^1].CarParkNo)
+            ? PageCursor.Encode(rows[^1].CarParkNo)
             : null;
 
         return new PagedResult<CarparkSummary>(results, nextCursor, hasMore, total);
@@ -346,50 +347,3 @@ public sealed class CarparkRepository : ICarparkRepository
     }
 }
 
-/// <summary>
-/// Encodes and decodes the opaque pagination cursor.
-/// </summary>
-/// <remarks>
-/// <para>
-/// Base64<b>Url</b> rather than the raw key, so the cursor reads as a token rather than an
-/// invitation to hand-craft one. It is obfuscation, not security - the value it carries is a
-/// public identifier, and the query is bounded regardless of what a caller puts here.
-/// </para>
-/// <para>
-/// The URL-safe alphabet is not optional: standard Base64 emits '+' and '/', which a client
-/// pasting the cursor straight back into a query string will mangle. The bug only appears on the
-/// subset of keys whose encoding happens to contain those characters, which is exactly the kind
-/// of intermittent paging failure that is miserable to diagnose later.
-/// </para>
-/// </remarks>
-internal static class Cursor
-{
-    /// <summary>Encodes a key as a cursor.</summary>
-    /// <param name="key">The last key on the page.</param>
-    /// <returns>An opaque cursor.</returns>
-    public static string Encode(string key) =>
-        Base64Url.EncodeToString(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new CursorPayload(key))));
-
-    /// <summary>Decodes a cursor back to a key.</summary>
-    /// <param name="cursor">The cursor.</param>
-    /// <returns>The key, or an empty string when the cursor is unreadable.</returns>
-    public static string Decode(string cursor)
-    {
-        try
-        {
-            var json = Encoding.UTF8.GetString(Base64Url.DecodeFromChars(cursor));
-            return JsonSerializer.Deserialize<CursorPayload>(json)?.K ?? string.Empty;
-        }
-        catch (Exception)
-        {
-            // Deliberately broad. This parses UNTRUSTED client input, the failure modes across
-            // Base64Url and JSON are several and version-dependent, and the fallback is
-            // well-defined and harmless: start from the beginning. A malformed cursor must never
-            // become a 500, which is both a poor experience and a free signal to an attacker
-            // probing the parameter.
-            return string.Empty;
-        }
-    }
-
-    private sealed record CursorPayload(string K);
-}
