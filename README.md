@@ -362,22 +362,53 @@ breaks the build. That is the difference between an architecture and a diagram.
 
 ## Endpoints
 
+Three access tiers. The rule dividing them is **does the answer depend on who is asking?**
+
+| Tier | Who | Because |
+|---|---|---|
+| 🌐 **Anonymous** | Anyone | Public HDB data. The same 1,605 free-parking carparks for everybody |
+| 🔑 **Bearer** | Any signed-in user | The answer is *yours* — your favourites, not mine |
+| 🔐 **Admin** | `Admin` role | Exposes source file names, host names and raw feed lines |
+
 | Method | Route | Auth | |
 |---|---|---|---|
-| `GET` | `/api/v1/carparks` | — | **The three user-story filters** |
-| `GET` | `/api/v1/carparks/{carParkNo}` | — | One carpark |
-| `GET` | `/api/v1/carparks/lookups` | — | Filter values with counts |
-| `POST` | `/api/v1/auth/register` | — | Create an account |
-| `POST` | `/api/v1/auth/login` | — | Access + refresh tokens |
-| `POST` | `/api/v1/auth/refresh` | — | Rotate; reuse revokes the chain |
-| `POST` | `/api/v1/auth/logout` | — | Revoke a refresh token |
-| `GET` | `/api/v1/favourites` | Bearer | List mine |
-| `PUT` | `/api/v1/favourites/{carParkNo}` | Bearer | **Add — idempotent** |
-| `DELETE` | `/api/v1/favourites/{carParkNo}` | Bearer | Remove |
-| `GET` | `/api/v1/admin/job-runs` | Admin | Ingestion history |
-| `GET` | `/api/v1/admin/job-runs/{id}/defects` | Admin | Defect report with line numbers |
-| `POST` | `/api/v1/admin/job-runs` | Admin | Trigger ingestion |
-| `GET` | `/api/v1/health/live` · `/ready` | — | Readiness degrades on a stale feed |
+| `GET` | `/api/v1/carparks` | 🌐 | **The three user-story filters** |
+| `GET` | `/api/v1/carparks/{carParkNo}` | 🌐 | One carpark |
+| `GET` | `/api/v1/carparks/lookups` | 🌐 | Filter values with counts |
+| `POST` | `/api/v1/auth/register` | 🌐 | Create an account |
+| `POST` | `/api/v1/auth/login` | 🌐 | Access + refresh tokens |
+| `POST` | `/api/v1/auth/refresh` | 🌐 | Rotate; reuse revokes the chain |
+| `POST` | `/api/v1/auth/logout` | 🌐 | Revoke a refresh token |
+| `GET` | `/api/v1/health/live` · `/ready` | 🌐 | Readiness degrades on a stale feed |
+| `GET` | `/api/v1/favourites` | 🔑 | List mine |
+| `PUT` | `/api/v1/favourites/{carParkNo}` | 🔑 | **Add — idempotent** |
+| `DELETE` | `/api/v1/favourites/{carParkNo}` | 🔑 | Remove |
+| `GET` | `/api/v1/admin/job-runs` | 🔐 | Ingestion history |
+| `GET` | `/api/v1/admin/job-runs/{id}` | 🔐 | One run with its counts |
+| `GET` | `/api/v1/admin/job-runs/{id}/defects` | 🔐 | Defect report with line numbers |
+| `POST` | `/api/v1/admin/job-runs` | 🔐 | Trigger ingestion |
+
+**What you get when you are not allowed in:**
+
+| | Meaning |
+|---|---|
+| `401` | *Who are you?* No token, expired, or one this server did not sign. The `detail` says which |
+| `403` | *I know who you are, and no.* You are signed in but not an administrator |
+
+**Anonymous is an explicit opt-out, not the default.** The fallback policy requires an authenticated
+user on **every** endpoint, and the public ones carry `[AllowAnonymous]`:
+
+```csharp
+.SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
+```
+
+The inverse default — public unless annotated — is how endpoints ship unprotected: forgetting an
+attribute becomes a security hole instead of a visible bug. `Every_operation_declares_its_access_tier`
+fails the build if a new endpoint is added without deciding which tier it belongs to.
+
+**Signing in improves search without being required for it.** Anonymous results carry
+`"isFavourite": null`; with a token every result carries `true` or `false`, so a client never fetches
+its favourites separately and intersects the two lists.
 
 ---
 

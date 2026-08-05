@@ -104,6 +104,72 @@ public sealed class OpenApiContractTests : IClassFixture<CarparkApiFactory>
     }
 
     /// <summary>
+    /// Every operation in the API is accounted for, with the access tier the README publishes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The two tests below check that a known list of endpoints is protected and another known list
+    /// is not. Neither notices a <b>new</b> endpoint. This one does: the map is exhaustive, so
+    /// adding an operation without classifying it fails the build rather than shipping with whatever
+    /// authorisation it happened to inherit.
+    /// </para>
+    /// <para>
+    /// OpenAPI cannot express a ROLE - <c>security</c> only says a bearer token is required, not
+    /// which claims it must carry. So "admin" here means "protected, and under /api/v1/admin"; that
+    /// the role is actually enforced is proved behaviourally by <c>AdminAndHealthTests</c>, which
+    /// asserts 403 for a signed-in non-admin and 200 for the seeded administrator.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Every_operation_declares_its_access_tier()
+    {
+        var expected = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["GET /api/v1/carparks"] = "anonymous",
+            ["GET /api/v1/carparks/{carParkNo}"] = "anonymous",
+            ["GET /api/v1/carparks/lookups"] = "anonymous",
+            ["POST /api/v1/auth/register"] = "anonymous",
+            ["POST /api/v1/auth/login"] = "anonymous",
+            ["POST /api/v1/auth/refresh"] = "anonymous",
+            ["POST /api/v1/auth/logout"] = "anonymous",
+            ["GET /api/v1/health/live"] = "anonymous",
+            ["GET /api/v1/health/ready"] = "anonymous",
+
+            ["GET /api/v1/favourites"] = "bearer",
+            ["PUT /api/v1/favourites/{carParkNo}"] = "bearer",
+            ["DELETE /api/v1/favourites/{carParkNo}"] = "bearer",
+
+            ["GET /api/v1/admin/job-runs"] = "admin",
+            ["POST /api/v1/admin/job-runs"] = "admin",
+            ["GET /api/v1/admin/job-runs/{id}"] = "admin",
+            ["GET /api/v1/admin/job-runs/{id}/defects"] = "admin",
+        };
+
+        var document = await GetDocumentAsync();
+        var actual = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var path in document.GetProperty("paths").EnumerateObject())
+        {
+            foreach (var operation in path.Value.EnumerateObject())
+            {
+                var isProtected = operation.Value.TryGetProperty("security", out var security)
+                    && security.GetArrayLength() > 0;
+
+                var tier = !isProtected
+                    ? "anonymous"
+                    : path.Name.StartsWith("/api/v1/admin", StringComparison.Ordinal) ? "admin" : "bearer";
+
+                actual[$"{operation.Name.ToUpperInvariant()} {path.Name}"] = tier;
+            }
+        }
+
+        actual.Should().BeEquivalentTo(expected,
+            "every endpoint must have a deliberate access tier, and the README publishes this exact "
+            + "table. A new operation appearing here means somebody added an endpoint without "
+            + "deciding who may call it; a changed tier means the README is now lying");
+    }
+
+    /// <summary>
     /// The partner assertion to <see cref="The_document_declares_the_bearer_security_scheme"/>.
     /// </summary>
     /// <remarks>
