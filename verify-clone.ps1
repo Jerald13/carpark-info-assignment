@@ -128,8 +128,11 @@ try {
     $runs = Invoke-RestMethod "$base/api/v1/admin/job-runs" -Headers $auth
     Assert-That "the API can see the batch job's run" { @($runs).Count } "1"
     Assert-That "the run succeeded" { $runs[0].status } "Succeeded"
-    Assert-That "the defect report is reachable" {
-        @(Invoke-RestMethod "$base/api/v1/admin/job-runs/$($runs[0].id)/defects" -Headers $auth).Count } "3"
+    # Assigned before counting, deliberately. `@(Invoke-RestMethod ... -Headers $auth).Count` binds
+    # .Count to the $auth hashtable rather than to the array, so it reports 1 whatever the API
+    # returned - a false failure that looks exactly like a real one.
+    $defects = Invoke-RestMethod "$base/api/v1/admin/job-runs/$($runs[0].id)/defects" -Headers $auth
+    Assert-That "the defect report is reachable" { @($defects).Count } "3"
 }
 finally {
     if ($api -and -not $api.HasExited) { Stop-Process -Id $api.Id -Force -ErrorAction SilentlyContinue }
