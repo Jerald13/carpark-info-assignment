@@ -243,6 +243,22 @@ API did not become ready. Its output was:" -ForegroundColor Red
     Assert-That "PUT /favourites/ACB again is idempotent" { Get-Status '/api/v1/favourites/ACB' 'PUT' $auth } "200"
     Assert-That "the favourite is listed" {
         (Invoke-RestMethod "$baseUrl/api/v1/favourites" -Headers $auth).data.Count } "1"
+
+    # Favourites paging was hard-coded: nextCursor null, hasMore false, and "total" set to the size
+    # of the page rather than the list. A user with more favourites than one page could not reach
+    # them, and every existing test used the default page size against one favourite - so the page
+    # was always the whole list and the lie was always accidentally true.
+    Invoke-WebRequest "$baseUrl/api/v1/favourites/ACM" -Method Put -Headers $auth -UseBasicParsing | Out-Null
+    Invoke-WebRequest "$baseUrl/api/v1/favourites/AH1" -Method Put -Headers $auth -UseBasicParsing | Out-Null
+
+    $page1 = Invoke-RestMethod "$baseUrl/api/v1/favourites?pageSize=1" -Headers $auth
+    Assert-That "totalCount is the list, not the page" { $page1.pagination.totalCount } "3"
+    Assert-That "a partial page reports hasMore" { $page1.pagination.hasMore } "True"
+
+    $page2 = Invoke-RestMethod ("$baseUrl/api/v1/favourites?pageSize=1&cursor=" +
+        [uri]::EscapeDataString($page1.pagination.nextCursor)) -Headers $auth
+    Assert-That "the cursor reaches a different favourite" {
+        $page2.data[0].carParkNo -ne $page1.data[0].carParkNo } "True"
     Assert-That "admin endpoints reject a normal user" { Get-Status '/api/v1/admin/job-runs' 'GET' $auth } "403"
 
     # A 401 that says only "Unauthorized" is three different mistakes wearing the same face: no

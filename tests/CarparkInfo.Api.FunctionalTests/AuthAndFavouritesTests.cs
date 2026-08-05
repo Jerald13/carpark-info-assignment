@@ -271,6 +271,102 @@ public sealed class AuthAndFavouritesTests : IClassFixture<CarparkApiFactory>
             + "impossible even by direct SQL");
     }
 
+    // -------------------------------------------------------------------------------------------
+    // Favourites paging.
+    //
+    // ListAsync ended `new PagedResult<>(summaries, null, false, summaries.Count)` - nextCursor
+    // hard-coded null, hasMore hard-coded false, and "total" set to the size of the PAGE rather
+    // than the number of favourites. page.Cursor was never read, so Take() simply truncated: a user
+    // with 50 favourites who asked for 20 received 20, was told there were 20 and that no more
+    // existed, and had no way to reach the other 30.
+    //
+    // Every existing favourites test used the default page size against one or two favourites, so
+    // the page was always the whole list and the lie was always accidentally true.
+    // -------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Every_favourite_is_reachable_by_paging_one_at_a_time()
+    {
+        using var client = _factory.CreateClient();
+        Authorise(client, await RegisterAndLoginAsync(client));
+
+        string[] carparks = ["ACB", "ACM", "AH1", "AK19", "A100"];
+
+        foreach (var carPark in carparks)
+        {
+            await client.PutAsync(new Uri($"/api/v1/favourites/{carPark}", UriKind.Relative), null, Ct);
+        }
+
+        var seen = new List<string>();
+        string? cursor = null;
+
+        for (var page = 0; page < 10; page++)
+        {
+            var url = "/api/v1/favourites?pageSize=1"
+                + (cursor is null ? "" : $"&cursor={Uri.EscapeDataString(cursor)}");
+
+            var body = await client.GetFromJsonAsync<JsonElement>(new Uri(url, UriKind.Relative), Ct);
+            var pagination = body.GetProperty("pagination");
+
+            pagination.GetProperty("totalCount").GetInt32().Should().Be(carparks.Length,
+                "totalCount is the user's whole list, not the size of the page just returned");
+
+            seen.AddRange(body.GetProperty("data").EnumerateArray()
+                .Select(c => c.GetProperty("carParkNo").GetString()!));
+
+            if (!pagination.GetProperty("hasMore").GetBoolean())
+            {
+                pagination.GetProperty("nextCursor").ValueKind.Should().Be(JsonValueKind.Null,
+                    "the last page must not offer a cursor to a page that does not exist");
+                break;
+            }
+
+            cursor = pagination.GetProperty("nextCursor").GetString();
+            cursor.Should().NotBeNullOrEmpty("hasMore is true, so there must be a way to get there");
+        }
+
+        seen.Should().BeEquivalentTo(carparks,
+            "paging one at a time must reach every favourite exactly once - no row stranded "
+            + "beyond the first page, and none returned twice");
+    }
+
+    [Fact]
+    public async Task A_single_page_holding_everything_reports_no_more()
+    {
+        using var client = _factory.CreateClient();
+        Authorise(client, await RegisterAndLoginAsync(client));
+
+        await client.PutAsync(new Uri("/api/v1/favourites/ACB", UriKind.Relative), null, Ct);
+        await client.PutAsync(new Uri("/api/v1/favourites/ACM", UriKind.Relative), null, Ct);
+
+        var body = await client.GetFromJsonAsync<JsonElement>(
+            new Uri("/api/v1/favourites?pageSize=20", UriKind.Relative), Ct);
+
+        var pagination = body.GetProperty("pagination");
+
+        pagination.GetProperty("totalCount").GetInt32().Should().Be(2);
+        pagination.GetProperty("hasMore").GetBoolean().Should().BeFalse();
+        pagination.GetProperty("nextCursor").ValueKind.Should().Be(JsonValueKind.Null);
+        body.GetProperty("data").GetArrayLength().Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Favourites_are_listed_most_recently_added_first()
+    {
+        using var client = _factory.CreateClient();
+        Authorise(client, await RegisterAndLoginAsync(client));
+
+        await client.PutAsync(new Uri("/api/v1/favourites/ACB", UriKind.Relative), null, Ct);
+        await client.PutAsync(new Uri("/api/v1/favourites/ACM", UriKind.Relative), null, Ct);
+        await client.PutAsync(new Uri("/api/v1/favourites/AH1", UriKind.Relative), null, Ct);
+
+        var body = await client.GetFromJsonAsync<JsonElement>(
+            new Uri("/api/v1/favourites", UriKind.Relative), Ct);
+
+        body.GetProperty("data")[0].GetProperty("carParkNo").GetString().Should().Be("AH1",
+            "the newest favourite leads, which is what a Favourites screen shows first");
+    }
+
     [Fact]
     public async Task Unfavouriting_is_idempotent()
     {
