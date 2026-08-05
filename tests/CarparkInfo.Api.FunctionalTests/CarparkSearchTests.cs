@@ -310,6 +310,57 @@ public sealed class CarparkSearchTests : IClassFixture<CarparkApiFactory>
             + "'sort=distence' looked like a working request that simply found nothing near you");
     }
 
+    /// <summary>
+    /// Walks every page of the whole catalogue and checks the set that came back.
+    /// </summary>
+    /// <remarks>
+    /// The other paging tests check one page, or one boundary. This one walks all 2,181 carparks and
+    /// asserts the union is exactly the catalogue - every row once, none twice, none stranded. That
+    /// is the only assertion that can catch an off-by-one at a page boundary, which is where keyset
+    /// paging goes wrong: an inclusive comparison repeats the boundary row on every page, and a
+    /// mis-encoded cursor drops it.
+    /// <para>
+    /// Page size 200 keeps this to 11 requests. The rate limiter permits 100 per minute per caller,
+    /// so a walk at pageSize=1 would exhaust the budget and fail with 429 rather than a paging
+    /// error - which is the limiter working, not a defect.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Paging_through_the_whole_catalogue_returns_every_carpark_exactly_once()
+    {
+        var seen = new List<string>();
+        string? cursor = null;
+        var requests = 0;
+
+        do
+        {
+            var url = "/api/v1/carparks?pageSize=200"
+                + (cursor is null ? "" : $"&cursor={Uri.EscapeDataString(cursor)}");
+
+            var body = await GetJsonAsync(url);
+            requests++;
+
+            seen.AddRange(body.GetProperty("data").EnumerateArray()
+                .Select(c => c.GetProperty("carParkNo").GetString()!));
+
+            var pagination = body.GetProperty("pagination");
+            cursor = pagination.GetProperty("hasMore").GetBoolean()
+                ? pagination.GetProperty("nextCursor").GetString()
+                : null;
+
+            requests.Should().BeLessThan(50, "2,181 rows at 200 per page is 11 requests; more means "
+                + "the walk is not advancing and the cursor is stuck");
+        }
+        while (cursor is not null);
+
+        seen.Should().HaveCount(2181, "every carpark must be reached exactly once");
+        seen.Distinct().Should().HaveCount(2181, "a boundary row repeated on two pages is the "
+            + "classic keyset off-by-one");
+        seen.Should().BeInAscendingOrder(StringComparer.Ordinal,
+            "the cursor advances by key, so the walk is ordered by definition. If it is not, the "
+            + "cursor and the ORDER BY disagree");
+    }
+
     [Fact]
     public async Task Pagination_is_the_first_field_in_the_response()
     {
