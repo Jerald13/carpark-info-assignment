@@ -184,6 +184,31 @@ curl -s -H "Authorization: Bearer $ADMIN" http://localhost:5106/api/v1/admin/job
 curl -s -H "Authorization: Bearer $ADMIN" http://localhost:5106/api/v1/admin/job-runs/1/defects | jq
 ```
 
+### Loading the data through the API instead of the CLI
+
+`POST /api/v1/admin/job-runs` processes whatever is sitting in the **intake inbox** — it does not take
+a file path. A fresh clone's inbox is empty, so the endpoint correctly answers `[]`. Put a file there
+first:
+
+```bash
+mkdir -p src/CarparkInfo.Api/intake/inbox
+cp hdb-carpark-information-20220824010400.csv src/CarparkInfo.Api/intake/inbox/
+```
+
+Now the whole load happens over HTTP, with no batch-job command at all:
+
+| | Before | After |
+|---|---|---|
+| `GET /api/v1/carparks?includeTotal=true` | `0` | `2181` |
+| `GET /api/v1/health/ready` | `503 Degraded` | `200 Healthy` |
+| The file | `intake/inbox/` | `intake/processed/` |
+
+> **Why isn't a file committed into the inbox?** Because ingestion **moves** it out on success. A
+> tracked file there would show as *deleted* in `git status` after anyone's first run, and every
+> reviewer would dirty the repository just by trying the endpoint. The inbox is a runtime drop
+> location — in production the provider writes to it — so it is ignored, and the dataset lives at the
+> repository root where it belongs.
+
 > **This account exists in Development only.** The seed is guarded by an ordinal comparison against
 > the environment name and fails closed — configuration can switch it *off* inside Development, but
 > can never switch it *on* anywhere else, and `DevelopmentSeederTests` asserts both directions.

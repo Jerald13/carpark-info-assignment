@@ -146,13 +146,21 @@ public sealed class AdminController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<TriggerResult>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    // NOT nullable, deliberately. `TriggerIngestionRequest?` publishes the body schema as
+    // oneOf [null, TriggerIngestionRequest], and Swagger UI renders the FIRST branch - so the
+    // request-body box opened on the literal word `null`. A reviewer reasonably reads that as an
+    // unfinished form and starts guessing. Non-nullable makes the box open on a real object built
+    // from the property examples, and `{}` remains a completely valid body because every property
+    // is optional.
     public async Task<ActionResult<IReadOnlyList<TriggerResult>>> TriggerIngestion(
-        [FromBody] TriggerIngestionRequest? request, CancellationToken cancellationToken)
+        [FromBody] TriggerIngestionRequest request, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var options = new IngestionOptions
         {
-            Mode = request?.Mode ?? _options.Value.Mode,
-            Force = request?.Force ?? false,
+            Mode = request.Mode ?? _options.Value.Mode,
+            Force = request.Force ?? false,
             InboxDirectory = _options.Value.InboxDirectory,
             ProcessedDirectory = _options.Value.ProcessedDirectory,
             QuarantineDirectory = _options.Value.QuarantineDirectory,
@@ -185,10 +193,22 @@ public sealed class AdminController : ControllerBase
 }
 
 /// <summary>Optional overrides for a manually triggered run.</summary>
-/// <param name="Mode">Delta or snapshot. Defaults to the configured mode.</param>
-/// <param name="Force">Reprocess even if the file has already been ingested successfully.</param>
-public sealed record TriggerIngestionRequest(
-    Domain.Ingestion.IngestionMode? Mode, bool? Force);
+/// <remarks>
+/// Both properties are optional and both carry an <c>example</c>, so Swagger's request-body box
+/// opens on a usable object rather than the bare <c>null</c> a fully nullable schema renders. A
+/// caller staring at <c>null</c> reasonably assumes the form is incomplete; every field here has a
+/// working default, and the box should say so.
+/// </remarks>
+public sealed record TriggerIngestionRequest
+{
+    /// <summary>Delta or snapshot. Defaults to the configured mode.</summary>
+    /// <example>Delta</example>
+    public Domain.Ingestion.IngestionMode? Mode { get; init; }
+
+    /// <summary>Reprocess even if the file has already been ingested successfully.</summary>
+    /// <example>false</example>
+    public bool? Force { get; init; }
+}
 
 /// <summary>What one triggered file's run did.</summary>
 /// <param name="FileName">The file.</param>
