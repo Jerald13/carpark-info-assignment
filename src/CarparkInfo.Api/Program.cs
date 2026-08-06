@@ -27,6 +27,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(
         new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
+// The SAME converter again, on Http.Json options. This is not a duplicate.
+//
+// AddJsonOptions above configures MVC's serialiser, which is what actually writes the response. The
+// OpenAPI schema generator reads Http.Json options instead, so with only the first registration the
+// API returned {"status": "Succeeded"} while the published schema declared JobRunStatus as
+// `integer`. A client generated from that document gets an int field and fails to deserialise the
+// response - the worst kind of contract bug, because both halves look correct on their own.
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(
+        new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApiSecurity(builder.Configuration);
 builder.AddApiObservability();

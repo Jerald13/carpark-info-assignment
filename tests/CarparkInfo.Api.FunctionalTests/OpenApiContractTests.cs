@@ -290,6 +290,79 @@ public sealed class OpenApiContractTests : IClassFixture<CarparkApiFactory>
             + "<param> tag. Offenders: {0}", string.Join(", ", offenders));
     }
 
+    /// <summary>
+    /// The published schema for an enum matches what the API actually sends.
+    /// </summary>
+    /// <remarks>
+    /// Enums serialise as names, so <c>job_run.status</c> comes back as <c>"Succeeded"</c>. The
+    /// schema declared <c>type: integer</c> anyway, because the converter had only been added to
+    /// MVC's <c>JsonOptions</c> - which writes the response - while the OpenAPI schema generator
+    /// reads <c>Http.Json</c> options. Both registrations are needed.
+    /// <para>
+    /// A client generated from that document gets an <c>int</c> field and throws on the first
+    /// response it receives. Neither half looks wrong in isolation, which is why it survived a
+    /// smoke check that asserted the response was a string: the response WAS a string. Nobody
+    /// asked what the contract claimed.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Enum_schemas_say_string_because_the_API_sends_strings()
+    {
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+
+        string[] enums = ["JobRunStatus", "ErrorSeverity", "IngestionMode"];
+        var offenders = new List<string>();
+        var checkedAny = false;
+
+        foreach (var name in enums)
+        {
+            if (!schemas.TryGetProperty(name, out var schema))
+            {
+                offenders.Add($"{name} is missing from components.schemas");
+                continue;
+            }
+
+            // OpenAPI 3.1 permits `type` to be omitted when `enum` is present - the values imply it.
+            // What must never be true is that the permitted values are ORDINALS, because the API
+            // sends names.
+            if (schema.TryGetProperty("type", out var t)
+                && t.ValueKind == JsonValueKind.String
+                && t.GetString() != "string")
+            {
+                offenders.Add($"{name} declares type '{t.GetString()}'");
+            }
+
+            if (!schema.TryGetProperty("enum", out var values) || values.GetArrayLength() == 0)
+            {
+                offenders.Add($"{name} publishes no permitted values");
+                continue;
+            }
+
+            checkedAny = true;
+
+            foreach (var value in values.EnumerateArray())
+            {
+                if (value.ValueKind != JsonValueKind.String)
+                {
+                    offenders.Add($"{name} permits {value} - an ordinal, not a name");
+                }
+            }
+        }
+
+        checkedAny.Should().BeTrue("the enum schemas must actually be present to be checked");
+        offenders.Should().BeEmpty(
+            "the API serialises enums as names, so the contract must publish names. A client "
+            + "generated from 'type: integer' produces an int field and throws on the first "
+            + "response it receives. Offenders: {0}", string.Join(", ", offenders));
+
+        // The exact values, so renaming a member is a deliberate breaking change rather than a
+        // silent one that only surfaces in a client someone else owns.
+        schemas.GetProperty("JobRunStatus").GetProperty("enum").EnumerateArray()
+            .Select(v => v.GetString()).Should().BeEquivalentTo(
+                ["Pending", "Running", "Succeeded", "Failed", "RolledBack", "Skipped"]);
+    }
+
     [Fact]
     public async Task The_document_is_OpenAPI_3_1()
     {

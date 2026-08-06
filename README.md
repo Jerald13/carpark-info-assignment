@@ -28,7 +28,15 @@ dotnet run --project src/CarparkInfo.Api
 Then open **<http://localhost:5106/swagger>** — note **http**, not https.
 
 The database is created and migrated automatically. Nothing else to install, no connection string
-to edit.
+to edit. This is what you should see:
+
+[![Swagger UI showing all sixteen endpoints](docs/images/swagger-ui.png)](docs/images/swagger-ui.png)
+
+<sub>Sixteen operations in five groups. The **padlocks** mark the endpoints that require a bearer
+token — favourites and admin — and they appear because the OpenAPI document declares a security
+requirement per operation, which is also what makes **Authorize** actually attach the header.
+Carpark search, auth and health carry no padlock: they are anonymous by explicit
+`[AllowAnonymous]`, not by default.</sub>
 
 > **Why HTTP?** .NET ships a self-signed development certificate that is **not trusted until you
 > say so**. Until then, `https://localhost:7293` is refused by the browser at the TLS handshake and
