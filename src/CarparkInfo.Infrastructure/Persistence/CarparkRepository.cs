@@ -28,7 +28,18 @@ public sealed class CarparkRepository : ICarparkRepository
         int? total = null;
         if (page.IncludeTotalCount)
         {
-            total = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+            // A plain CountAsync here counts the BOUNDING BOX, and a radius search then discards the
+            // corners further down. The two disagreed: a 5 km search around 1.3009,103.8546 reported
+            // 420 and returned 391. A client that pages until it has totalCount rows waits for 29
+            // that will never arrive, and a UI simply prints the wrong number.
+            //
+            // The exact count needs the haversine, which SQL cannot run here, so the box's
+            // coordinates are materialised and counted in memory. That is bounded by the radius cap
+            // and only happens when includeTotal is explicitly requested - which is already
+            // documented as the expensive option.
+            total = filter.HasRadiusSearch
+                ? await CountWithinRadiusAsync(query, filter, cancellationToken).ConfigureAwait(false)
+                : await query.CountAsync(cancellationToken).ConfigureAwait(false);
         }
 
         var pageSize = page.EffectivePageSize;
@@ -254,6 +265,29 @@ public sealed class CarparkRepository : ICarparkRepository
         }
 
         return query;
+    }
+
+    /// <summary>Counts the carparks genuinely inside the radius, not merely inside its bounding box.</summary>
+    /// <param name="query">The query with every filter applied, including the box prefilter.</param>
+    /// <param name="filter">The filter, for the centre and radius.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>How many carparks are within the requested radius.</returns>
+    private static async Task<int> CountWithinRadiusAsync(
+        IQueryable<Carpark> query, CarparkFilter filter, CancellationToken cancellationToken)
+    {
+        var centreLatitude = filter.Latitude!.Value;
+        var centreLongitude = filter.Longitude!.Value;
+        var radius = filter.RadiusKilometres!.Value;
+
+        // Only the two coordinates are read - no addresses, no lookups, no joins.
+        var points = await query
+            .Select(c => new { c.Location.Latitude, c.Location.Longitude })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return points.Count(p =>
+            Location.DistanceInKilometresBetween(
+                p.Latitude, p.Longitude, centreLatitude, centreLongitude) <= radius);
     }
 
     private IQueryable<CarparkRow> Project(IQueryable<Carpark> query, int? userId) =>

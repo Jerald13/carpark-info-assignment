@@ -361,6 +361,70 @@ public sealed class CarparkSearchTests : IClassFixture<CarparkApiFactory>
             + "cursor and the ORDER BY disagree");
     }
 
+    /// <summary>
+    /// A radius search counts the circle, not the square it was prefiltered with.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Radius search runs in two stages: an indexable bounding box in SQL, then an exact haversine
+    /// pass that discards the corners - a square's corner is √2 of the radius, 41% further than
+    /// asked for. <c>totalCount</c> was taken from the box, before the second stage. A 5 km search
+    /// reported 420 and returned 391.
+    /// </para>
+    /// <para>
+    /// A client paging until it has <c>totalCount</c> rows waits for 29 that never arrive, and a UI
+    /// simply prints a number that is wrong. Both halves were individually correct - the box count
+    /// was a correct count of the box - which is why nothing caught it.
+    /// </para>
+    /// </remarks>
+    [Theory]
+    [InlineData(1.0)]
+    [InlineData(2.0)]
+    [InlineData(5.0)]
+    public async Task A_radius_search_counts_what_it_returns(double radiusKm)
+    {
+        const double latitude = 1.3009;
+        const double longitude = 103.8546;
+        var query = $"lat={latitude}&lon={longitude}&radiusKm={radiusKm}";
+
+        var reported = (await GetJsonAsync($"/api/v1/carparks?{query}&includeTotal=true&pageSize=1"))
+            .GetProperty("pagination").GetProperty("totalCount").GetInt32();
+
+        var returned = 0;
+        var furthest = 0.0;
+        string? cursor = null;
+
+        do
+        {
+            var url = $"/api/v1/carparks?{query}&pageSize=200"
+                + (cursor is null ? "" : $"&cursor={Uri.EscapeDataString(cursor)}");
+
+            var body = await GetJsonAsync(url);
+
+            foreach (var carpark in body.GetProperty("data").EnumerateArray())
+            {
+                returned++;
+                furthest = Math.Max(furthest, carpark.GetProperty("distanceKm").GetDouble());
+            }
+
+            var pagination = body.GetProperty("pagination");
+            cursor = pagination.GetProperty("hasMore").GetBoolean()
+                ? pagination.GetProperty("nextCursor").GetString()
+                : null;
+        }
+        while (cursor is not null);
+
+        reported.Should().Be(returned,
+            "totalCount must count the carparks inside the CIRCLE, which is what the endpoint "
+            + "returns - not the bounding box it was prefiltered with");
+
+        furthest.Should().BeLessThanOrEqualTo(radiusKm,
+            "the bounding box leaks corners up to 41% beyond the radius; the haversine pass exists "
+            + "to remove them");
+
+        returned.Should().BeGreaterThan(0, "this centre has carparks near it at every radius tested");
+    }
+
     [Fact]
     public async Task Pagination_is_the_first_field_in_the_response()
     {

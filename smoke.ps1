@@ -216,6 +216,16 @@ API did not become ready. Its output was:" -ForegroundColor Red
             [uri]::EscapeDataString((Get-Json '/api/v1/carparks?pageSize=5').pagination.nextCursor)) } "200"
     Assert-That "comma-separated carParkType" { (Get-Json '/api/v1/carparks?carParkType=MULTI_STOREY,BASEMENT&includeTotal=true&pageSize=1').pagination.totalCount } "1071"
 
+    # Radius search prefilters with an index-seekable bounding box, then discards the corners with
+    # an exact haversine pass. totalCount used to be taken from the BOX: a 5 km search reported 420
+    # and returned 391, so a client paging to totalCount waited for 29 rows that never existed.
+    $geo = '/api/v1/carparks?lat=1.3009&lon=103.8546&radiusKm=2'
+    Assert-That "radius count matches rows returned" {
+        (Get-Json "$geo&includeTotal=true&pageSize=1").pagination.totalCount -eq
+        (Get-Json "$geo&pageSize=200").data.Count } "True"
+    Assert-That "no result lies beyond the radius" {
+        (@((Get-Json "$geo&pageSize=200").data | Where-Object { $_.distanceKm -gt 2 })).Count } "0"
+
     # -- 7. Response shape -------------------------------------------------------------------
     Write-Step "7. The response shape stops clients repeating the height bug"
     Assert-That "unrestricted carpark reports isRestricted=false" { (Get-Json '/api/v1/carparks/AK19').heightRestriction.isRestricted } "False"

@@ -100,13 +100,31 @@ public readonly record struct Location
     /// to the survivors. A bounding box alone returns a square, whose corners are 41% further away
     /// than the radius the user asked for.
     /// </remarks>
-    public double DistanceInKilometresTo(double latitude, double longitude)
+    public double DistanceInKilometresTo(double latitude, double longitude) =>
+        DistanceInKilometresBetween(Latitude, Longitude, latitude, longitude);
+
+    /// <summary>
+    /// Great-circle distance between two points, without needing a <see cref="Location"/>.
+    /// </summary>
+    /// <param name="latitude">First point's latitude in decimal degrees.</param>
+    /// <param name="longitude">First point's longitude in decimal degrees.</param>
+    /// <param name="otherLatitude">Second point's latitude in decimal degrees.</param>
+    /// <param name="otherLongitude">Second point's longitude in decimal degrees.</param>
+    /// <returns>The distance in kilometres.</returns>
+    /// <remarks>
+    /// Exists so a radius search can COUNT its matches without materialising a full
+    /// <see cref="Location"/> - and, more importantly, without a second implementation of the
+    /// formula. <see cref="DistanceInKilometresTo"/> delegates here, so the count and the results
+    /// can never be computed two different ways and disagree.
+    /// </remarks>
+    public static double DistanceInKilometresBetween(
+        double latitude, double longitude, double otherLatitude, double otherLongitude)
     {
-        var deltaLatitude = ToRadians(latitude - Latitude);
-        var deltaLongitude = ToRadians(longitude - Longitude);
+        var deltaLatitude = ToRadians(otherLatitude - latitude);
+        var deltaLongitude = ToRadians(otherLongitude - longitude);
 
         var a = (Math.Sin(deltaLatitude / 2.0) * Math.Sin(deltaLatitude / 2.0))
-            + (Math.Cos(ToRadians(Latitude)) * Math.Cos(ToRadians(latitude))
+            + (Math.Cos(ToRadians(latitude)) * Math.Cos(ToRadians(otherLatitude))
                * Math.Sin(deltaLongitude / 2.0) * Math.Sin(deltaLongitude / 2.0));
 
         return EarthRadiusKilometres * 2.0 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1.0 - a));
